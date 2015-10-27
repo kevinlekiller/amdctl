@@ -35,7 +35,7 @@
 #define AMD10H 0x10 // K10
 #define AMD11H 0x11 // puma
 #define AMD12H 0x12 // llanna/fusion
-//#define AMD13H 0x13 // unknown
+#define AMD13H 0x13 // unknown
 #define AMD14H 0x14 // bobcat
 #define AMD15H 0x15 // bulldozer/piledriver/steamroller/excavator/etc
 #define AMD16H 0x16 // godvari/kaveri/kabini/jaguar/beema/etc
@@ -65,22 +65,16 @@ void defineFamily() {
 		getVidType();
 		PSTATES = 5;
 		break;
-/*	case AMD11H:
-*/
-/*	case AMD12H:
-*/
-/*	case AMD13H:
-*/
-/*	case AMD14H:
-*/
-/*	case AMD15H:
-*/
 	case AMD16H:
 		pvi = 0;
 		PSTATES = 8;
 		break;
-/*      case 23:
-*/
+	case AMD11H:
+	case AMD12H:
+	case AMD13H:
+	case AMD14H:
+	case AMD15H:
+	case AMD17H:
 	default:
 		fprintf(stderr, "Unsupported AMD CPU family: %d", family);
 		exit(EXIT_FAILURE);
