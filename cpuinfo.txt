@@ -9,6 +9,9 @@ use hardcoded values for cpus without, it's possible the cpus without the info
 have them, but AMD forgot to add them in the PDF's, but without CPU's to test
 this theory it's better to use hardcoded values.
 
+I won't support 12h (bobcat) because the CPU voltage calculations are too
+different and I don't have one of those CPU's too test.
+
 10h				http://support.amd.com/TechDocs/31116.pdf
 5 P-States
 0xc0010061		P-State current limit register
@@ -112,8 +115,6 @@ this theory it's better to use hardcoded values.
 	15:9			CpuVid			Core voltage id
 *	UNDEF				CpuDid			Core dividor id
 *	UNDEF				CpuFid			Core frequency id
-
-The CpuDid is done differently and there is no CpuFid, for simplicity, blacklist these CPUs.
 
 15h 00h-0Fh		http://support.amd.com/TechDocs/42301_15h_Mod_00h-0Fh_BKDG.pdf
 8 P-States
