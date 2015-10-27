@@ -1,7 +1,7 @@
 # amdctl
 WIP Program to set voltages / multipliers on AMD CPUs in Linux.
 
-Testong on 10h (k10) CPU until I get a 15h (godvari) CPU.
+Testing on 10h (k10) CPU until I get a 15h (godvari) CPU.
 
 Requires the msr kernel module.
 
