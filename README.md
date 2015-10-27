@@ -11,5 +11,5 @@ http://developer.amd.com/resources/documentation-articles/developer-guides-manua
 https://wiki.archlinux.org/index.php/K10ctl  
 http://sourceforge.net/projects/k10ctl/  
 https://web.archive.org/web/20090914081440/http://www.ztex.de/misc/k10ctl.e.html  
-https://01.org/msr-tools
+https://01.org/msr-tools  
 https://en.wikipedia.org/wiki/List_of_AMD_CPU_microarchitectures
