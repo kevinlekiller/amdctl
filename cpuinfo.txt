@@ -12,6 +12,10 @@ this theory it's better to use hardcoded values.
 I won't support 12h (bobcat) because the CPU voltage calculations are too
 different and I don't have one of those CPU's too test.
 
+MaxCpuCof and MainPllOpEtc are similar.
+
+The only real difference is the lack of MaxVid/MinVid on some CPUs and 12h have the CPU DID/FID in different bits.
+
 10h				http://support.amd.com/TechDocs/31116.pdf
 5 P-States
 0xc0010061		P-State current limit register
