@@ -1,0 +1,264 @@
+Only bits available in all families are chosen.
+
+UNDEF = Not defined in the manual. Don't rely on the CPU having the data if UNDEF.
+
+If the bits are different than 10h, a leading * is added.
+
+Since a decent amount of cpus have MaxVid/MinVid, use those for those cpus,
+use hardcoded values for cpus without, it's possible the cpus without the info
+have them, but AMD forgot to add them in the PDF's, but without CPU's to test
+this theory it's better to use hardcoded values.
+
+10h				http://support.amd.com/TechDocs/31116.pdf
+5 P-States
+0xc0010061		P-State current limit register
+	6:4				PstateMaxVal	P-State maximum value
+	2:0				CurPstateLimit	Current P-State limit
+0xc0010062		P-State control register
+	2:0				PstateCmd		P-State change command
+0xc0010063		P-State status register
+	2:0				CurPstate 		Current P-State
+0xc00100[64-68]	P-State registers
+	41:40			IddDiv			Current divisor field
+	39:32			IddValue		Current value field
+	15:9			CpuVid			Core voltage id
+	8:6				CpuDid			Core dividor id
+	5:0				CpuFid			Core frequency id
+0xc0010071		COFVID Status Register
+	58:56			CurPstateLimit	Current P-state limit
+	54:49			MaxCpuCof		Maximum CPU COF
+	48:42			MinVid			Minimum Voltage id
+	41:35			MaxVid			Maximum Voltage id
+	31:25			NbVid			Northbridge voltage id
+	18:16			PstateId		P-State identifier
+	15:9			CpuVid			Core voltage id
+	8:6				CpuDid			Core dividor id
+	5:0				CpuFid			Core frequency id
+
+11h				http://support.amd.com/TechDocs/41256.pdf
+8 P-States
+0xc0010061		P-State current limit register
+	6:4				PstateMaxVal	P-State maximum value
+	2:0				CurPstateLimit	Current P-State limit
+0xc0010062		P-State control register
+	2:0				PstateCmd		P-State change command
+0xc0010063		P-State status register
+	2:0				CurPstate 		Current P-State
+0xc00100[64-6B]	P-State registers
+	41:40			IddDiv			Current divisor field
+	39:32			IddValue		Current value field
+	15:9			CpuVid			Core voltage id
+	8:6				CpuDid			Core dividor id
+	5:0				CpuFid			Core frequency id
+0xc0010071		COFVID Status Register
+	58:56			CurPstateLimit	Current P-state limit
+*	54:49			MainPllOpEtc  	Main PLL operating frequency id maximum
+	48:42			MinVid			Minimum Voltage id
+	41:35			MaxVid			Maximum Voltage id
+	31:25			NbVid			Northbridge voltage id
+	18:16			PstateId		P-State identifier
+	15:9			CpuVid			Core voltage id
+	8:6				CpuDid			Core dividor id
+	5:0				CpuFid			Core frequency id
+
+12h				http://support.amd.com/TechDocs/41131.pdf
+8 P-States
+0xc0010061		P-State current limit register
+	6:4				PstateMaxVal	P-State maximum value
+	2:0				CurPstateLimit	Current P-State limit
+0xc0010062		P-State control register
+	2:0				PstateCmd		P-State change command
+0xc0010063		P-State status register
+	2:0				CurPstate 		Current P-State
+0xc00100[64-6B]	P-State registers
+	41:40			IddDiv			Current divisor field
+	39:32			IddValue		Current value field
+	15:9			CpuVid			Core voltage id
+*	8:4				CpuDid			Core dividor id
+*	3:0				CpuFid			Core frequency id
+0xc0010071		COFVID Status Register
+	58:56			CurPstateLimit	Current P-state limit
+*	54:49			MainPllOpEtc  	Main PLL operating frequency id maximum
+	48:42			MinVid			Minimum Voltage id
+	41:35			MaxVid			Maximum Voltage id
+	31:25			NbVid			Northbridge voltage id
+	18:16			PstateId		P-State identifier
+	15:9			CpuVid			Core voltage id
+*	8:4				CpuDid			Core dividor id
+*	3:0				CpuFid			Core frequency id
+
+14h	00h-0Fh		http://support.amd.com/TechDocs/43170_14h_Mod_00h-0Fh_BKDG.pdf
+8 P-States
+0xc0010061		P-State current limit register
+	6:4				PstateMaxVal	P-State maximum value
+	2:0				CurPstateLimit	Current P-State limit
+0xc0010062		P-State control register
+	2:0				PstateCmd		P-State change command
+0xc0010063		P-State status register
+	2:0				CurPstate 		Current P-State
+0xc00100[64-6B]	P-State registers
+	41:40			IddDiv			Current divisor field
+	39:32			IddValue		Current value field
+	15:9			CpuVid			Core voltage id
+*	UNDEF				CpuDid			Core dividor id
+*	UNDEF				CpuFid			Core frequency id
+0xc0010071		COFVID Status Register
+	58:56			CurPstateLimit	Current P-state limit
+*	54:49			MainPllOpEtc  	Main PLL operating frequency id maximum
+	48:42			MinVid			Minimum Voltage id
+	41:35			MaxVid			Maximum Voltage id
+	31:25			NbVid			Northbridge voltage id
+	18:16			PstateId		P-State identifier
+	15:9			CpuVid			Core voltage id
+*	UNDEF				CpuDid			Core dividor id
+*	UNDEF				CpuFid			Core frequency id
+
+The CpuDid is done differently and there is no CpuFid, for simplicity, blacklist these CPUs.
+
+15h 00h-0Fh		http://support.amd.com/TechDocs/42301_15h_Mod_00h-0Fh_BKDG.pdf
+8 P-States
+0xc0010061		P-State current limit register
+	6:4				PstateMaxVal	P-State maximum value
+	2:0				CurPstateLimit	Current P-State limit
+0xc0010062		P-State control register
+	2:0				PstateCmd		P-State change command
+0xc0010063		P-State status register
+	2:0				CurPstate 		Current P-State
+0xc00100[64-6B]	P-State registers
+	41:40			IddDiv			Current divisor field
+	39:32			IddValue		Current value field
+	15:9			CpuVid			Core voltage id
+	8:6				CpuDid			Core dividor id
+	5:0				CpuFid			Core frequency id
+0xc0010071		COFVID Status Register
+	58:56			CurPstateLimit	Current P-state limit
+	54:49			MaxCpuCof		Maximum CPU COF
+	48:42			MinVid			Minimum Voltage id
+	41:35			MaxVid			Maximum Voltage id
+	31:25			NbVid			Northbridge voltage id
+	18:16			PstateId		P-State identifier
+	15:9			CpuVid			Core voltage id
+	8:6				CpuDid			Core dividor id
+	5:0				CpuFid			Core frequency id
+
+15h 10h-1Fh		http://support.amd.com/TechDocs/42300_15h_Mod_10h-1Fh_BKDG.pdf
+8 P-States
+0xc0010061		P-State current limit register
+	6:4				PstateMaxVal	P-State maximum value
+	2:0				CurPstateLimit	Current P-State limit
+0xc0010062		P-State control register
+	2:0				PstateCmd		P-State change command
+0xc0010063		P-State status register
+	2:0				CurPstate 		Current P-State
+0xc00100[64-6B]	P-State registers
+	41:40			IddDiv			Current divisor field
+	39:32			IddValue		Current value field
+	15:9			CpuVid			Core voltage id
+	8:6				CpuDid			Core dividor id
+	5:0				CpuFid			Core frequency id
+0xc0010071		COFVID Status Register
+	58:56			CurPstateLimit	Current P-state limit
+	54:49			MaxCpuCof		Maximum CPU COF
+*	UNDEF			MinVid			Minimum Voltage id
+*	UNDEF			MaxVid			Maximum Voltage id
+*	31:24			NbVid			Northbridge voltage id
+	18:16			PstateId		P-State identifier
+	15:9			CpuVid			Core voltage id
+	8:6				CpuDid			Core dividor id
+	5:0				CpuFid			Core frequency id
+
+15h 30h-3Fh		http://support.amd.com/TechDocs/49125_15h_Models_30h-3Fh_BKDG.pdf
+8 P-States
+0xc0010061		P-State current limit register
+	6:4				PstateMaxVal	P-State maximum value
+	2:0				CurPstateLimit	Current P-State limit
+0xc0010062		P-State control register
+	2:0				PstateCmd		P-State change command
+0xc0010063		P-State status register
+	2:0				CurPstate 		Current P-State
+0xc00100[64-6B]	P-State registers
+	41:40			IddDiv			Current divisor field
+	39:32			IddValue		Current value field
+	15:9			CpuVid			Core voltage id
+	8:6				CpuDid			Core dividor id
+	5:0				CpuFid			Core frequency id
+0xc0010071		COFVID Status Register
+	58:56			CurPstateLimit	Current P-state limit
+	54:49			MaxCpuCof		Maximum CPU COF
+*	UNDEF			MinVid			Minimum Voltage id
+*	UNDEF			MaxVid			Maximum Voltage id
+*	31:24			NbVid			Northbridge voltage id
+	18:16			PstateId		P-State identifier
+	15:9			CpuVid			Core voltage id
+	8:6				CpuDid			Core dividor id
+	5:0				CpuFid			Core frequency id
+
+15h 60h-6Fh		http://support.amd.com/TechDocs/50742_15h_Models_60h-6Fh_BKDG.pdf
+8 P-States
+0xc0010061		P-State current limit register
+	6:4				PstateMaxVal	P-State maximum value
+	2:0				CurPstateLimit	Current P-State limit
+0xc0010062		P-State control register
+	2:0				PstateCmd		P-State change command
+0xc0010063		P-State status register
+	2:0				CurPstate 		Current P-State
+0xc00100[64-6B]	P-State registers
+	41:40			IddDiv			Current divisor field
+	39:32			IddValue		Current value field
+	15:9			CpuVid			Core voltage id
+	8:6				CpuDid			Core dividor id
+	5:0				CpuFid			Core frequency id
+0xc0010071		COFVID Status Register
+* No bits are shown, but if you search the pdf, you can find multiple references to MSRc001_0071
+
+16h	00h-0Fh		http://support.amd.com/TechDocs/48751_16h_bkdg.pdf
+8 P-States
+0xc0010061		P-State current limit register
+	6:4				PstateMaxVal	P-State maximum value
+	2:0				CurPstateLimit	Current P-State limit
+0xc0010062		P-State control register
+	2:0				PstateCmd		P-State change command
+0xc0010063		P-State status register
+	2:0				CurPstate 		Current P-State
+0xc00100[64-68]	P-State registers
+	41:40			IddDiv			Current divisor field
+	39:32			IddValue		Current value field
+	15:9			CpuVid			Core voltage id
+	8:6				CpuDid			Core dividor id
+	5:0				CpuFid			Core frequency id
+0xc0010071		COFVID Status Register
+	58:56			CurPstateLimit	Current P-state limit
+	54:49			MaxCpuCof		Maximum CPU COF
+*	UNDEF			MinVid			Minimum Voltage id
+*	UNDEF			MaxVid			Maximum Voltage id
+*	31:24			NbVid			Northbridge voltage id
+	18:16			PstateId		P-State identifier
+	15:9			CpuVid			Core voltage id
+	8:6				CpuDid			Core dividor id
+	5:0				CpuFid			Core frequency id
+
+16h	30h-3Fh		http://support.amd.com/TechDocs/52740_16h_Models_30h-3Fh_BKDG.pdf
+8 P-States
+0xc0010061		P-State current limit register
+	6:4				PstateMaxVal	P-State maximum value
+	2:0				CurPstateLimit	Current P-State limit
+0xc0010062		P-State control register
+	2:0				PstateCmd		P-State change command
+0xc0010063		P-State status register
+	2:0				CurPstate 		Current P-State
+0xc00100[64-68]	P-State registers
+	41:40			IddDiv			Current divisor field
+	39:32			IddValue		Current value field
+	15:9			CpuVid			Core voltage id
+	8:6				CpuDid			Core dividor id
+	5:0				CpuFid			Core frequency id
+0xc0010071		COFVID Status Register
+	58:56			CurPstateLimit	Current P-state limit
+	54:49			MaxCpuCof		Maximum CPU COF
+*	UNDEF			MinVid			Minimum Voltage id
+*	UNDEF			MaxVid			Maximum Voltage id
+*	31:24			NbVid			Northbridge voltage id
+	18:16			PstateId		P-State identifier
+	15:9			CpuVid			Core voltage id
+	8:6				CpuDid			Core dividor id
+	5:0				CpuFid			Core frequency id
