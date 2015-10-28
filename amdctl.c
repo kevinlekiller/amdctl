@@ -99,7 +99,7 @@ void defineFamily() {
 	case AMD14H: // Disabled due to differences in cpu vid / did / fid
 	case AMD17H: // Disabled because no BKDG currently.
 	default:
-		error("Your CPU family is unsupported.\n");
+		error("Your CPU family is unsupported.");
 	}
 }
 
@@ -178,12 +178,12 @@ void getReg(const uint32_t reg) {
 	sprintf(path, "/dev/cpu/%d/msr", core);
 	fh = open(path, O_RDONLY);
 	if (fh < 0) {
-		error("ERROR: Could not open CPU for reading!.\n");
+		error("Could not open CPU for reading!");
 	}
 
 	if (pread(fh, &tmp_buffer, 8, reg) != sizeof buffer) {
 		close(fh);
-		error("ERROR: Could not get data from CPU!\n");
+		error("Could not get data from CPU!");
 	}
 	close(fh);
 	buffer = tmp_buffer;
@@ -208,12 +208,12 @@ void setReg(const uint32_t reg, const char *loc, int replacement) {
 	sprintf(path, "/dev/cpu/%d/msr", core);
 	fh = open(path, O_WRONLY);
 	if (fh < 0) {
-		error("ERROR: Could not open CPU for writing!\n");
+		error("Could not open CPU for writing!");
 	}
 
 	if (pwrite(fh, &temp_buffer, sizeof temp_buffer, reg) != sizeof temp_buffer) {
 		close(fh);
-		error("ERROR: Could not change value!\n");
+		error("Could not change value!");
 	}
 	close(fh);
 }
@@ -287,23 +287,23 @@ void getVidType() {
 
 	fh = open(path, O_RDONLY);
 	if (fh < 0) {
-		error("Unsupported CPU? Could not open /proc/bus/pci/00/18.3\n");
+		error("Unsupported CPU? Could not open /proc/bus/pci/00/18.3");
 	}
 
 	if (read(fh, &buff, 256) != 256) {
 		close(fh);
-		error("Unsupported CPU? Could not read data from /proc/bus/pci/00/18.3\n");
+		error("Unsupported CPU? Could not read data from /proc/bus/pci/00/18.3");
 	}
 	close(fh);
 
 	if (buff[3] != 0x12 || buff[2] != 0x3 || buff[1] != 0x10 || buff[0] != 0x22) {
-		error("Unsupported CPU? Could not find voltage encodings.\n");
+		error("Unsupported CPU? Could not find voltage encodings.");
 	}
 	pvi = ((buff[0xa1] & 1) == 1);
 }
 
 
 void error(const char *message) {
-	fprintf(stderr, message);
+	fprintf(stderr, "ERROR: %s\n", message);
 	exit(EXIT_FAILURE);
 }
