@@ -21,16 +21,23 @@
 #include <stdlib.h>
 #include <inttypes.h>
 
-#define PSTATE_STATUS 0xc0010063
-#define BASE_PSTATE 0xc0010064 // TODO In the BKDG, NB_VID is not listed for 15h, it's in c0010070/c0010071, add a check for this
-#define COFVID_CONTROL 0xc0010070
-#define COFVID_STATUS 0xc0010071
+void printBaseFmt();
+void printPstates();
+int getDec(const char *);
+void getReg(const uint32_t);
+void getVidType();
+float vidTomV(const int);
+int mVToVid(float);
+void defineFamily();
+void setReg(const uint32_t, const char *, int);
+void test();
 
-#define CPU_VID_BITS "15:9"
-#define CPU_DID_BITS "8:6"
-#define CPU_FID_BITS "5:0"
+#define PSTATE_CURRENT_LIMIT 0xc0010061
+#define PSTATE_CONTROL       0xc0010062
+#define PSTATE_STATUS        0xc0010063
+#define PSTATE_BASE          0xc0010064
+#define COFVID_STATUS        0xc0010071
 
-#define NB_VID_BITS "31:25"
 
 #define AMD10H 0x10 // K10
 #define AMD11H 0x11 // puma
@@ -41,23 +48,29 @@
 #define AMD16H 0x16 // godvari/kaveri/kabini/jaguar/beema/etc
 #define AMD17H 0x17 // zen
 
-void printBaseFmt();
-void printPstates();
-int getDec(const char *);
-void getReg(const uint32_t);
-void getVidType();
-float vidTomV(const int);
-int mVToVid(float);
-void defineFamily();
-void setCpuVid();
-void setReg(uint64_t, const char *, int, const uint32_t); // TODO reorder/improve args 
-void test();
+#define PSTATE_MAX_VAL_BITS          "6:4"
+#define CUR_PSTATE_LIMIT_BITS        "2:0"
+#define PSTATE_CMD_BITS              "2:0"
+#define CUR_PSTATE_BITS              "2:0"
+#define IDD_DIV_BITS                 "41:40"
+#define IDD_VALUE_BITS               "39:32"
+#define CPU_VID_BITS                 "15:9"
+#define COFVID_CUR_PSTATE_LIMIT_BITS "58:56"
+#define MAX_CPU_COF_BITS             "54:49"
+#define MIN_VID_BITS                 "48:42"
+#define MAX_VID_BITS                 "41:35"
 
-int PSTATES;
+char *NB_VID_BITS  = "31:25";
+char *CPU_DID_BITS = "8:6";
+char *CPU_FID_BITS = "5:0";
+
+int PSTATES = 8;
 uint64_t buffer;
 int core;
-int pvi;
-int family;
+int pvi = 0; // Seems like only some 10h use pvi?
+int cpuFamily;
+int cpuModel;
+int minMaxVid = 1;
 
 void defineFamily() {
 	switch (family) {
@@ -65,16 +78,25 @@ void defineFamily() {
 		getVidType();
 		PSTATES = 5;
 		break;
-	case AMD16H:
-		pvi = 0;
-		PSTATES = 8;
+	case AMD12H:
+		CPU_DID_BITS = "8:4";
+		CPU_FID_BITS = "3:0";
 		break;
 	case AMD11H:
-	case AMD12H:
 	case AMD13H:
-	case AMD14H:
+		break;
 	case AMD15H:
-	case AMD17H:
+		if (cpuModel > 0x0f) {
+			minMaxVid = 0;
+			NB_VID_BITS = "31:24";
+		}
+		break;
+	case AMD16H:
+		minMaxVid = 0;
+		NB_VID_BITS = "31:24;
+		break;
+	case AMD14H: // Disabled due to differences in cpu vid / did / fid
+	case AMD17H: // Disabled because no BKDG currently.
 	default:
 		fprintf(stderr, "Unsupported AMD CPU family: %d", family);
 		exit(EXIT_FAILURE);
@@ -101,21 +123,21 @@ int main(const int argc, const char *argv[]) {
 // Test setting voltage to 1450mV on P-State 0 of core 0
 void test() {
 	core = 0; // Sets CPU core to 0.
-	getReg(BASE_PSTATE);  // Gets the info for P-State 0
+	getReg(PSTATE_BASE);  // Gets the info for P-State 0
 	printBaseFmt(); // Prints the info.
 	int oldVolt = vidTomV(getDec(CPU_VID_BITS)); // Get voltage of p-state.
-	setReg(buffer, CPU_VID_BITS, mVToVid((oldVolt - 25)), BASE_PSTATE); // Reduces voltage for CPU 0 P-State 0 by 0.025v
-	getReg(BASE_PSTATE); // Get info for P-State 0
+	setReg(PSTATE_BASE, CPU_VID_BITS, mVToVid((oldVolt - 25))); // Reduces voltage for CPU 0 P-State 0 by 0.025v
+	getReg(PSTATE_BASE); // Get info for P-State 0
 	printBaseFmt(); // Print infor for P-State 0.
-	setReg(buffer, CPU_VID_BITS, mVToVid(oldVolt), BASE_PSTATE); // Reset voltage to normal.
-	getReg(BASE_PSTATE); // Get info for P-State 0
+	setReg(PSTATE_BASE, CPU_VID_BITS, mVToVid(oldVolt)); // Reset voltage to normal.
+	getReg(PSTATE_BASE); // Get info for P-State 0
 	printBaseFmt(); // Print infor for P-State 0.
 	exit(EXIT_SUCCESS);
 }
 
 void printPstates() {
 	int pstate;
-	uint32_t reg = (BASE_PSTATE - 1);
+	uint32_t reg = (PSTATE_BASE - 1);
 	for (pstate = 0; pstate < PSTATES; pstate++) {
 		printf("\tP-State %d\n", pstate);
 		reg += 1;
@@ -125,10 +147,6 @@ void printPstates() {
 
 	printf("\tCOFVID Status P-State\n");
 	getReg(COFVID_STATUS);
-	printBaseFmt();
-
-	printf("\tCOFVID Control P-State\n");
-	getReg(COFVID_CONTROL);
 	printBaseFmt();
 }
 
@@ -157,24 +175,24 @@ void getReg(const uint32_t reg) {
 
 	sprintf(path, "/dev/cpu/%d/msr", core);
 	fh = open(path, O_RDONLY);
-		if (fh < 0) {
-				fprintf(stderr, "Could not open cpu %s!\n", path);
-				exit(EXIT_FAILURE);
-		}
+	if (fh < 0) {
+		fprintf(stderr, "Could not open cpu %s!\n", path);
+		exit(EXIT_FAILURE);
+	}
 
 	if (pread(fh, &tmp_buffer, 8, reg) != sizeof buffer) {
-				close(fh);
-				fprintf(stderr, "Could not read cpu %s!\n", path);
-				exit(EXIT_FAILURE);
-		}
 		close(fh);
+		fprintf(stderr, "Could not read cpu %s!\n", path);
+		exit(EXIT_FAILURE);
+	}
+	close(fh);
 	buffer = tmp_buffer;
 }
 
-void setReg(uint64_t data, const char *loc, int replacement, const uint32_t reg) {
+void setReg(const uint32_t reg, const char *loc, int replacement) {
 	int low;
 	int high;
-	uint64_t temp = data;
+	uint64_t temp_buffer = buffer;
 	char path[32];
 	int fh;
 
@@ -185,16 +203,16 @@ void setReg(uint64_t data, const char *loc, int replacement, const uint32_t reg)
 		high = temp;
 	}
 
-	data = (data & (~(high << low)) | (replacement << low));
+	temp_buffer = (temp_buffer & (~(high << low)) | (replacement << low));
 
 	sprintf(path, "/dev/cpu/%d/msr", core);
-		fh = open(path, O_WRONLY);
-		if (fh < 0) {
-				fprintf(stderr, "Could not open cpu %s!\n", path);
-				exit(EXIT_FAILURE);
-        }
+	fh = open(path, O_WRONLY);
+	if (fh < 0) {
+		fprintf(stderr, "Could not open cpu %s!\n", path);
+		exit(EXIT_FAILURE);
+	}
 
-	if (pwrite(fh, &data, sizeof data, reg) != sizeof data) {
+	if (pwrite(fh, &temp_buffer, sizeof temp_buffer, reg) != sizeof temp_buffer) {
 		close(fh);
 		fprintf(stderr, "Could not write to cpu %s!\n", path);
 		exit(EXIT_FAILURE);
@@ -262,10 +280,6 @@ int mVToVid(float mV) {
 		}
 	}
 	return 0;
-}
-
-void setCpuVid(int vid) {
-	
 }
 
 // Ported from k10ctl
