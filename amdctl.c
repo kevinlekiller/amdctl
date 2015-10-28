@@ -73,7 +73,7 @@ int cpuModel;
 int minMaxVid = 1;
 
 void defineFamily() {
-	switch (family) {
+	switch (cpuFamily) {
 	case AMD10H:
 		getVidType();
 		PSTATES = 5;
@@ -93,19 +93,19 @@ void defineFamily() {
 		break;
 	case AMD16H:
 		minMaxVid = 0;
-		NB_VID_BITS = "31:24;
+		NB_VID_BITS = "31:24";
 		break;
 	case AMD14H: // Disabled due to differences in cpu vid / did / fid
 	case AMD17H: // Disabled because no BKDG currently.
 	default:
-		fprintf(stderr, "Unsupported AMD CPU family: %d", family);
+		fprintf(stderr, "Unsupported AMD CPU family: %d", cpuFamily);
 		exit(EXIT_FAILURE);
 	}
 }
 
 // TODO parse args
 int main(const int argc, const char *argv[]) {
-	family = 16;
+	cpuFamily = 16;
 #define FSB_MHZ 200
 	defineFamily();
 
@@ -203,7 +203,7 @@ void setReg(const uint32_t reg, const char *loc, int replacement) {
 		high = temp;
 	}
 
-	temp_buffer = (temp_buffer & (~(high << low)) | (replacement << low));
+	temp_buffer = ((temp_buffer & (~(high << low))) | (replacement << low));
 
 	sprintf(path, "/dev/cpu/%d/msr", core);
 	fh = open(path, O_WRONLY);
@@ -252,7 +252,6 @@ float vidTomV(const int vid) {
 }
 
 int mVToVid(float mV) {
-	int minVid = 0;
 	int maxVid = 124;
 	int i;
 	float tmpv;
@@ -260,7 +259,7 @@ int mVToVid(float mV) {
 	float mult = 12.5;
 	if (mV > 1550 || mV < 1) {
 		// TODO CHECK ERROR IN ARGV
-		return;
+		return 0;
 	}
 	if (pvi) {
 		if (mV > 1162.5) {
@@ -305,5 +304,5 @@ void getVidType() {
 		fprintf(stderr, "Could not read voltage identifier encoding from %s, unsupported CPU?\n", path);
 		exit(EXIT_FAILURE);
 	}
-	pvi = (buff[0xa1] & 1 == 1);
+	pvi = ((buff[0xa1] & 1) == 1);
 }
