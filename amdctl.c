@@ -30,6 +30,7 @@ float vidTomV(const int);
 int mVToVid(float);
 void defineFamily();
 void setReg(const uint32_t, const char *, int);
+void error(const char *);
 void test();
 
 #define PSTATE_CURRENT_LIMIT 0xc0010061
@@ -98,8 +99,7 @@ void defineFamily() {
 	case AMD14H: // Disabled due to differences in cpu vid / did / fid
 	case AMD17H: // Disabled because no BKDG currently.
 	default:
-		fprintf(stderr, "Unsupported AMD CPU family: %d", cpuFamily);
-		exit(EXIT_FAILURE);
+		error("Your CPU family is unsupported.\n");
 	}
 }
 
@@ -156,8 +156,9 @@ void printBaseFmt() {
 	int CpuFid = getDec(CPU_FID_BITS);
 	float CpuVolt = vidTomV(CpuVid);
 	int NbVid  = getDec(NB_VID_BITS);
+	float NbVolt = vidTomV(NbVid);
 	int CpuMult = ((CpuFid + 0x10) / (2 ^ CpuDid));
-	float CpuFreq = FSB_MHZ * CpuMult;
+	float CpuFreq = ((100 * (CpuFid + 16)) >> CpuDid);
 
 	printf("\t\tCPU voltage id          %d\n", CpuVid);
 	printf("\t\tCPU divisor id          %d\n", CpuDid);
@@ -166,6 +167,7 @@ void printBaseFmt() {
 	printf("\t\tCPU frequency           %.2fMHz\n", CpuFreq);
 	printf("\t\tCPU voltgage            %.2fmV\n", CpuVolt);
 	printf("\t\tNorth Bridge voltage id %d\n", NbVid);
+	printf("\t\tNorth Bridge voltage    %.2fmV\n", NbVolt);
 }
 
 void getReg(const uint32_t reg) {
@@ -176,14 +178,12 @@ void getReg(const uint32_t reg) {
 	sprintf(path, "/dev/cpu/%d/msr", core);
 	fh = open(path, O_RDONLY);
 	if (fh < 0) {
-		fprintf(stderr, "Could not open cpu %s!\n", path);
-		exit(EXIT_FAILURE);
+		error("ERROR: Could not open CPU for reading!.\n");
 	}
 
 	if (pread(fh, &tmp_buffer, 8, reg) != sizeof buffer) {
 		close(fh);
-		fprintf(stderr, "Could not read cpu %s!\n", path);
-		exit(EXIT_FAILURE);
+		error("ERROR: Could not get data from CPU!\n");
 	}
 	close(fh);
 	buffer = tmp_buffer;
@@ -208,14 +208,12 @@ void setReg(const uint32_t reg, const char *loc, int replacement) {
 	sprintf(path, "/dev/cpu/%d/msr", core);
 	fh = open(path, O_WRONLY);
 	if (fh < 0) {
-		fprintf(stderr, "Could not open cpu %s!\n", path);
-		exit(EXIT_FAILURE);
+		error("ERROR: Could not open CPU for writing!\n");
 	}
 
 	if (pwrite(fh, &temp_buffer, sizeof temp_buffer, reg) != sizeof temp_buffer) {
 		close(fh);
-		fprintf(stderr, "Could not write to cpu %s!\n", path);
-		exit(EXIT_FAILURE);
+		error("ERROR: Could not change value!\n");
 	}
 	close(fh);
 }
@@ -289,20 +287,23 @@ void getVidType() {
 
 	fh = open(path, O_RDONLY);
 	if (fh < 0) {
-		fprintf(stderr, "Could not check voltage identifier encodings in %s!\n", path);
-		exit(EXIT_FAILURE);
+		error("Unsupported CPU? Could not open /proc/bus/pci/00/18.3\n");
 	}
 
 	if (read(fh, &buff, 256) != 256) {
 		close(fh);
-		fprintf(stderr, "Could not read voltage identifier encoding from %s!\n", path);
-		exit(EXIT_FAILURE);
+		error("Unsupported CPU? Could not read data from /proc/bus/pci/00/18.3\n");
 	}
 	close(fh);
 
 	if (buff[3] != 0x12 || buff[2] != 0x3 || buff[1] != 0x10 || buff[0] != 0x22) {
-		fprintf(stderr, "Could not read voltage identifier encoding from %s, unsupported CPU?\n", path);
-		exit(EXIT_FAILURE);
+		error("Unsupported CPU? Could not find voltage encodings.\n");
 	}
 	pvi = ((buff[0xa1] & 1) == 1);
+}
+
+
+void error(const char *message) {
+	fprintf(stderr, message);
+	exit(EXIT_FAILURE);
 }
