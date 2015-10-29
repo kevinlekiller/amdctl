@@ -1,5 +1,5 @@
 /**
- * Copyright 2015  kevinlekiller
+ * Copyright (C) 2015  kevinlekiller
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,6 +21,7 @@
 #include <stdlib.h>
 #include <inttypes.h>
 #include <string.h>
+#include <getopt.h>
 
 void printBaseFmt();
 void printPstates();
@@ -30,9 +31,11 @@ void setReg(const uint32_t, const char *, int);
 void getVidType();
 float vidTomV(const int);
 int mVToVid(float);
+void calculateDidFid(int, int *, int *);
 void getCpuInfo();
 void checkFamily();
 void error(const char *);
+void usage();
 void test();
 
 #define PSTATE_CURRENT_LIMIT 0xc0010061
@@ -71,10 +74,79 @@ static uint64_t buffer;
 static int cpuFamily, cpuModel, cores, core, pvi = 0;
 static int minMaxVid, testMode = 1;
 
-// TODO parse args
-int main(const int argc, const char *argv[]) {
+int main(int argc, char **argv) {
 	getCpuInfo();
 	checkFamily();
+	
+	int c;
+	while (1) {
+		static struct option long_options[] = {
+			/* These options set a flag. */
+			//{"verbose", no_argument,       &verbose_flag, 1},
+			//{"brief",   no_argument,       &verbose_flag, 0},
+			/* These options don’t set a flag.
+			 *        We distinguish them by their indices. */
+			{"get",     no_argument,       0, 'g'},
+			{"help",    no_argument,       0, 'h'},
+			{"test",    no_argument,       0, 't'},
+			{"cpu",     required_argument, 0, 'c'},
+			{"low",     required_argument, 0, 'l'},
+			{"high",    required_argument, 0, 'm'},
+			{"setnv",   required_argument, 0, 'n'},
+			{"pstate",  required_argument, 0, 'p'},
+			{"setcv",   required_argument, 0, 'v'},
+			{0, 0, 0, 0}
+		};
+		int option_index = 0;
+		c = getopt_long(argc, argv, "ghtc:l:m:n:p:v:", long_options, &option_index);
+
+		if (c == -1) {
+			break;
+		}
+		
+		switch (c) {
+			case 0:
+				/* If this option set a flag, do nothing else now. */
+				if (long_options[option_index].flag != 0)
+					break;
+				printf ("option %s", long_options[option_index].name);
+				if (optarg)
+					printf (" with arg %s", optarg);
+				printf ("\n");
+				break;
+				
+			case 'g':
+				puts("option -g\n");
+				break;
+			case 't':
+				puts("option -g\n");
+				break;
+			case 'c':
+				printf("option -c with value `%s'\n", optarg);
+				break;
+			case 'l':
+				printf("option -l with value `%s'\n", optarg);
+				break;
+			case 'm':
+				printf("option -m with value `%s'\n", optarg);
+				break;
+			case 'n':
+				printf("option -n with value `%s'\n", optarg);
+				break;
+			case 'p':
+				printf("option -p with value `%s'\n", optarg);
+				break;
+			case 'v':
+				printf("option -v with value `%s'\n", optarg);
+				break;
+			case '?':
+			case 'h':
+			default:
+				usage();
+		}
+	}
+	
+	return 0;
 
 	printf("Voltage ID encodings: %s\n", (pvi ? "PVI (parallel)" : "SVI (serial)"));
 	for (core = 0; core < cores; core++) {
@@ -141,7 +213,7 @@ void checkFamily() {
 		case AMD14H: // Disabled due to differences in cpu vid / did / fid
 		case AMD17H: // Disabled because no BKDG currently.
 		default:
-			error("Your CPU family is unsupported.");
+			error("Your CPU family is unsupported by amdctl.");
 	}
 }
 
@@ -153,8 +225,15 @@ void usage() {
 	printf("    -p  --pstate   P-state to work on. (all P-states if not set)\n");
 	printf("    -v  --setcv    Set cpu voltage for P-state(millivolts, 1.4volts=1400 millivolts).\n");
 	printf("    -n  --setnv    Set north bridge voltage (millivolts).\n");
-	printf("    -t  --test     Show changes without applying them to the CPU.\n");
-	printf("    -h  --help     Shows this informations.\n");
+	printf("    -l  --low      Set the lowest useable (non boosted) P-state (all cores if -c not set).\n");
+	printf("    -m  --high     Set the highest useable (non boosted) P-State (all cores if -c not set).\n");
+	printf("    -t  --test     Preview changes without applying them to the CPU.\n");
+	printf("    -h  --help     Shows this information.\n");
+	printf("\n");
+	printf("amdctl                    Shows this infortmation.\n");
+	printf("amdctl -g -c0             Displays all P-state info for core 0.\n");
+	printf("amdctl -g -c3 -p0         Displays P-state 1 info for core 0.\n");
+	printf("amdctl -v1400 -c2 -p0     Set voltage to 1.4v on cpu 2 P-state 0.\n");
 }
 
 // Test setting voltage to 1450mV on P-State 0 of core 0
@@ -215,22 +294,20 @@ void getReg(const uint32_t reg) {
 	sprintf(path, "/dev/cpu/%d/msr", core);
 	fh = open(path, O_RDONLY);
 	if (fh < 0) {
-		error("Could not open CPU for reading!");
+		error("Could not open CPU for reading! Is the msr kernel module loaded?");
 	}
 
 	if (pread(fh, &tmp_buffer, 8, reg) != sizeof buffer) {
 		close(fh);
-		error("Could not get data from CPU!");
+		error("Could not read data from CPU!");
 	}
 	close(fh);
 	buffer = tmp_buffer;
 }
 
 void setReg(const uint32_t reg, const char *loc, int replacement) {
-	int low;
-	int high;
+	int low, high, fh;
 	char path[32];
-	int fh;
 
 	sscanf(loc, "%d:%d", &high, &low);
 	if (low > high) {
@@ -245,21 +322,19 @@ void setReg(const uint32_t reg, const char *loc, int replacement) {
 		sprintf(path, "/dev/cpu/%d/msr", core);
 		fh = open(path, O_WRONLY);
 		if (fh < 0) {
-			error("Could not open CPU for writing!");
+			error("Could not open CPU for writing! Is the msr kernel module loaded?");
 		}
 
 		if (pwrite(fh, &buffer, sizeof buffer, reg) != sizeof buffer) {
 			close(fh);
-			error("Could not change value!");
+			error("Could write new value to CPU!");
 		}
 		close(fh);
 	}
 }
 
 int getDec(const char *loc) {
-	int high;
-	int low;
-	int bits;
+	int high, low, bits;
 	uint64_t temp = buffer;
 
 	// From msr-tools.
@@ -317,6 +392,30 @@ int mVToVid(float mV) {
 	return 0;
 }
 
+void calculateDidFid(int mhz, int *retFid, int *retDid) {
+	int foundDid,i, tmp_mhz = 0;
+	if (mhz >= 1600) {
+		foundDid = 0x0;
+	} else if (mhz >= 800) {
+		foundDid = 0x1;
+	} else if (mhz >= 400) {
+		foundDid = 0x2;
+	} else if (mhz >= 200) {
+		foundDid = 0x3;
+	} else {
+		foundDid = 0x4;
+	}
+	for (i = 0; i <= 0x2f; i++) {
+		tmp_mhz = ((100 * (i + 0x10)) >> foundDid);
+		if (tmp_mhz >= mhz) {
+			break;
+		}
+	}
+	printf("Found did %d, fid %d (%dMHz) for wanted %dMHz\n", foundDid, i, tmp_mhz, mhz);
+	*retFid = i;
+	*retDid = foundDid;
+}
+
 // Ported from k10ctl
 void getVidType() {
 	int fh;
@@ -324,17 +423,17 @@ void getVidType() {
 
 	fh = open("/proc/bus/pci/00/18.3", O_RDONLY);
 	if (fh < 0) {
-		error("Unsupported CPU? Could not open /proc/bus/pci/00/18.3 ; Requires root permissions.");
+		error("Unsupported CPU? Could not open /proc/bus/pci/00/18.3 ; Do you have the required permissions to read this file?");
 	}
 
 	if (read(fh, &buff, 256) != 256) {
 		close(fh);
-		error("Unsupported CPU? Could not read data from /proc/bus/pci/00/18.3");
+		error("Could not read data from /proc/bus/pci/00/18.3 ; Unsupported CPU?");
 	}
 	close(fh);
 
 	if (buff[3] != 0x12 || buff[2] != 0x3 || buff[1] != 0x10 || buff[0] != 0x22) {
-		error("Unsupported CPU? Could not find voltage encodings.");
+		error("Could not find voltage encodings from /proc/bus/pci/00/18.3 ; Unsupported CPU?");
 	}
 	pvi = ((buff[0xa1] & 1) == 1);
 }
