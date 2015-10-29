@@ -172,10 +172,10 @@ int main(int argc, char **argv) {
 				printf("P-State: %d\n", (pstate >= 0 ? pstate : i));
 			}
 			getReg(tmp_pstates[i]);
-			if (nv) {
+			if (nv > 0) {
 				setReg(tmp_pstates[i], NB_VID_BITS, mVToVid(nv));
 			}
-			if (cv) {
+			if (cv > 0) {
 				setReg(tmp_pstates[i], CPU_VID_BITS, mVToVid(cv));
 			}
 			printBaseFmt();
@@ -309,7 +309,6 @@ void printBaseFmt() {
 void getReg(const uint32_t reg) {
 	char path[32];
 	int fh;
-	uint64_t tmp_buffer = buffer;
 
 	sprintf(path, "/dev/cpu/%d/msr", core);
 	fh = open(path, O_RDONLY);
@@ -317,12 +316,11 @@ void getReg(const uint32_t reg) {
 		error("Could not open CPU for reading! Is the msr kernel module loaded?");
 	}
 
-	if (pread(fh, &tmp_buffer, 8, reg) != sizeof tmp_buffer) {
+	if (pread(fh, &buffer, 8, reg) != sizeof buffer) {
 		close(fh);
 		error("Could not read data from CPU!");
 	}
 	close(fh);
-	buffer = tmp_buffer;
 }
 
 void setReg(const uint32_t reg, const char *loc, int replacement) {
