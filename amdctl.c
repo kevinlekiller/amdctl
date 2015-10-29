@@ -318,7 +318,7 @@ void printBaseFmt(const int idd) {
 	
 	if (idd) {
 		int IddDiv = getDec(IDD_DIV_BITS);
-		printf("\t\tCore current divisor id  %d\n", IddDiv);
+		printf("\t\tCore current divisor id %d\n", IddDiv);
 		switch (IddDiv) {
 			case 0b00:
 				IddDiv = 1;
@@ -335,8 +335,8 @@ void printBaseFmt(const int idd) {
 		}
 		int cpuCurrent = getDec(IDD_VALUE_BITS);
 		int cpuCurrDraw = abs(cpuCurrent / IddDiv);
-		printf("\t\tCore current id          %d\n", cpuCurrent);
-		printf("\t\tCore current draw        %dA\n", cpuCurrDraw);
+		printf("\t\tCore current id         %d\n", cpuCurrent);
+		printf("\t\tCore current draw       %dA\n", cpuCurrDraw);
 		printf("\t\tCore power draw         %.2fW\n", ((cpuCurrDraw * cpuVolt) / 1000));
 	}
 }
