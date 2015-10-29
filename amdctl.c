@@ -23,7 +23,7 @@
 #include <string.h>
 #include <getopt.h>
 
-void printBaseFmt();
+void printBaseFmt(const int idd);
 int getDec(const char *);
 void getReg(const uint32_t);
 void setReg(const uint32_t, const char *, int);
@@ -188,12 +188,13 @@ int main(int argc, char **argv) {
 				writeReg = 1;
 				setReg(tmp_pstates[i], CPU_FID_BITS, fndCpuFid);
 			}
-			printBaseFmt();
+			getReg(tmp_pstates[i]); // Refresh for IDD values.
+			printBaseFmt(1);
 		}
 		getReg(PSTATE_STATUS);
 		printf("\tCurrent P-State: %d\n", getDec(CUR_PSTATE_BITS) + 1);
 		getReg(COFVID_STATUS);
-		printBaseFmt();
+		printBaseFmt(0);
 		if (low > -1) {
 			setReg(PSTATE_CURRENT_LIMIT, PSTATE_MAX_VAL_BITS, low);
 		}
@@ -299,11 +300,11 @@ void usage() {
 	exit(EXIT_SUCCESS);
 }
 
-void printBaseFmt() {
-	int CpuVid = getDec(CPU_VID_BITS);
-	int CpuDid = getDec(CPU_DID_BITS);
-	int CpuFid = getDec(CPU_FID_BITS);
-	int NbVid  = getDec(NB_VID_BITS);
+void printBaseFmt(const int idd) {
+	const int CpuVid = getDec(CPU_VID_BITS);
+	const int CpuDid = getDec(CPU_DID_BITS);
+	const int CpuFid = getDec(CPU_FID_BITS);
+	const int NbVid  = getDec(NB_VID_BITS);
 
 	printf("\t\tCPU voltage id          %d\n", CpuVid);
 	printf("\t\tCPU divisor id          %d\n", CpuDid);
@@ -313,6 +314,11 @@ void printBaseFmt() {
 	printf("\t\tCPU voltgage            %.2fmV\n", vidTomV(CpuVid));
 	printf("\t\tNorth Bridge voltage id %d\n", NbVid);
 	printf("\t\tNorth Bridge voltage    %.2fmV\n", vidTomV(NbVid));
+	
+	if (idd) {
+		int IddDiv = getDec(IDD_DIV_BITS);
+		printf("IddDiv: %d\n", IddDiv);
+	}
 }
 
 void getReg(const uint32_t reg) {
