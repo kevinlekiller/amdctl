@@ -68,8 +68,7 @@ static char *CPU_FID_BITS = "5:0";
 
 static int PSTATES = 8;
 static uint64_t buffer;
-static int core, cores;
-static int cpuFamily, cpuModel, pvi = 0;
+static int cpuFamily, cpuModel, cores, core, pvi = 0;
 static int minMaxVid, testMode = 1;
 
 // TODO parse args
@@ -104,16 +103,16 @@ void getCpuInfo() {
 		} else if (strstr(buff, "cpu cores") != NULL) {
 			sscanf(buff, "%*s %*s : %d", &cores);
 		}
-		if (cpuFamily && cpuModel) {
+		if (cpuFamily && cpuModel && cores) {
 			break;
 		}
 	}
 	
 	fclose(fp);
-	if (!cpuModel || !cpuFamily) {
+	if (!cpuModel || !cpuFamily || !cores) {
 		error("Could not find CPU family or model!");
 	}
-	printf("Detected cpu model %xh, from family %xh\n", cpuModel, cpuFamily);
+	printf("Detected cpu model %xh, from family %xh with %d cpu cores.\n", cpuModel, cpuFamily, cores);
 }
 
 void checkFamily() {
