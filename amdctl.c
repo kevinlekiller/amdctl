@@ -169,7 +169,7 @@ int main(int argc, char **argv) {
 			printBaseFmt();
 		}
 		getReg(PSTATE_STATUS);
-		printf("\tCurrent P-State: %d\n", getDec(CUR_PSTATE_BITS));
+		printf("\tCurrent P-State: %d\n", getDec(CUR_PSTATE_BITS) + 1);
 		getReg(COFVID_STATUS);
 		printBaseFmt();
 		if (low > -1) {
@@ -180,8 +180,8 @@ int main(int argc, char **argv) {
 		}
 		getReg(PSTATE_CURRENT_LIMIT);
 		puts("\tP-State Limits:\n");
-		printf("\t\tMin: %d\n", getDec(PSTATE_MAX_VAL_BITS));
-		printf("\t\tMax: %d\n", getDec(CUR_PSTATE_LIMIT_BITS));
+		printf("\t\tMin: %d\n", getDec(PSTATE_MAX_VAL_BITS) + 1);
+		printf("\t\tMax: %d\n", getDec(CUR_PSTATE_LIMIT_BITS) + 1);
 	}
 
 	return EXIT_SUCCESS;
