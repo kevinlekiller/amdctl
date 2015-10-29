@@ -30,8 +30,8 @@ void setReg(const uint32_t, const char *, int);
 void getVidType();
 float vidTomV(const int);
 int mVToVid(float);
-void defineFamily();
 void getCpuInfo();
+void checkFamily();
 void error(const char *);
 void test();
 
@@ -68,52 +68,16 @@ static char *CPU_FID_BITS = "5:0";
 
 static int PSTATES = 8;
 static uint64_t buffer;
-static int core;
-static int pvi = 0; // Seems like only some 10h use pvi?
-static int cpuFamily = 0;
-static int cpuModel = 0;
-static int minMaxVid = 1;
-static int testMode = 1;
-
-void defineFamily() {
-	switch (cpuFamily) {
-	case AMD10H:
-		getVidType();
-		PSTATES = 5;
-		break;
-	case AMD12H:
-		CPU_DID_BITS = "8:4";
-		CPU_FID_BITS = "3:0";
-		break;
-	case AMD11H:
-	case AMD13H:
-		break;
-	case AMD15H:
-		if (cpuModel > 0x0f) {
-			minMaxVid = 0;
-			NB_VID_BITS = "31:24";
-		}
-		break;
-	case AMD16H:
-		minMaxVid = 0;
-		NB_VID_BITS = "31:24";
-		break;
-	case AMD14H: // Disabled due to differences in cpu vid / did / fid
-	case AMD17H: // Disabled because no BKDG currently.
-	default:
-		error("Your CPU family is unsupported.");
-	}
-}
+static int core, cores;
+static int cpuFamily, cpuModel, pvi = 0;
+static int minMaxVid, testMode = 1;
 
 // TODO parse args
 int main(const int argc, const char *argv[]) {
 	getCpuInfo();
-	defineFamily();
-
-//test();
+	checkFamily();
 
 	printf("Voltage ID encodings: %s\n", (pvi ? "PVI (parallel)" : "SVI (serial)"));
-	int cores = 1;
 	for (core = 0; core < cores; core++) {
 		printf("CPU Core %d\n", core);
 		printPstates();
@@ -137,6 +101,8 @@ void getCpuInfo() {
 			sscanf(buff, "%*s %*s : %d", &cpuFamily);
 		} else if (strstr(buff, "model") != NULL) {
 			sscanf(buff, "%*s : %d", &cpuModel);
+		} else if (strstr(buff, "cpu cores") != NULL) {
+			sscanf(buff, "%*s %*s : %d", &cores);
 		}
 		if (cpuFamily && cpuModel) {
 			break;
@@ -148,6 +114,36 @@ void getCpuInfo() {
 		error("Could not find CPU family or model!");
 	}
 	printf("Detected cpu model %xh, from family %xh\n", cpuModel, cpuFamily);
+}
+
+void checkFamily() {
+	switch (cpuFamily) {
+		case AMD10H:
+			getVidType();
+			PSTATES = 5;
+			break;
+		case AMD12H:
+			CPU_DID_BITS = "8:4";
+			CPU_FID_BITS = "3:0";
+			break;
+		case AMD11H:
+		case AMD13H:
+			break;
+		case AMD15H:
+			if (cpuModel > 0x0f) {
+				minMaxVid = 0;
+				NB_VID_BITS = "31:24";
+			}
+			break;
+		case AMD16H:
+			minMaxVid = 0;
+			NB_VID_BITS = "31:24";
+			break;
+		case AMD14H: // Disabled due to differences in cpu vid / did / fid
+		case AMD17H: // Disabled because no BKDG currently.
+		default:
+			error("Your CPU family is unsupported.");
+	}
 }
 
 void usage() {
