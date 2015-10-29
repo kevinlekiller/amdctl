@@ -24,7 +24,6 @@
 #include <getopt.h>
 
 void printBaseFmt();
-void printPstates();
 int getDec(const char *);
 void getReg(const uint32_t);
 void setReg(const uint32_t, const char *, int);
@@ -70,7 +69,7 @@ static char *CPU_FID_BITS = "5:0";
 
 static int PSTATES = 8;
 static uint64_t buffer;
-static int cpuFamily = 0, cpuModel = 0, cores = 0, pvi = 0;
+static int cpuFamily = 0, cpuModel = 0, cores = 0, pvi = 0, debug = 0;
 static int core = -1;
 static int pstate = -2;
 static int minMaxVid = 0, testMode = 0;
@@ -81,12 +80,15 @@ int main(int argc, char **argv) {
 	
 	int low = 0, high = 0, nv = 0, cv = 0, type = 0;
 	int c;
-	while ((c = getopt(argc, argv, "ghtc:l:m:n:p:v:")) != -1) {
+	while ((c = getopt(argc, argv, "dghtc:l:m:n:p:v:")) != -1) {
 		switch (c) {
 			case 'g':
 				break;
 			case 't':
 				testMode = 1;
+				break;
+			case 'd':
+				debug = 1;
 				break;
 			case 'c':
 				core = atoi(optarg);
@@ -167,9 +169,9 @@ int main(int argc, char **argv) {
 		int i;
 		for (i = 0; i < pstates_count; i++) {
 			if (tmp_pstates[i] == COFVID_STATUS) {
-				puts("P-State: Current");
+				puts("\tP-State: Current");
 			} else {
-				printf("P-State: %d\n", (pstate >= 0 ? pstate : i));
+				printf("\tP-State: %d\n", (pstate >= 0 ? pstate : i));
 			}
 			getReg(tmp_pstates[i]);
 			if (nv > 0) {
@@ -186,6 +188,7 @@ int main(int argc, char **argv) {
 }
 
 void getCpuInfo() {
+	if (debug) { printf("DEBUG: Checking CPU info.\n"); }
 	FILE *fp;
 	char buff[8192];
 	
@@ -216,6 +219,7 @@ void getCpuInfo() {
 }
 
 void checkFamily() {
+	if (debug) { printf("DEBUG: Setting variables based on CPU model.\n"); }
 	switch (cpuFamily) {
 		case AMD10H:
 			getVidType();
@@ -256,6 +260,7 @@ void usage() {
 	printf("    -l    Set the lowest useable (non boosted) P-state (all cores if -c not set).\n");
 	printf("    -m    Set the highest useable (non boosted) P-State (all cores if -c not set).\n");
 	printf("    -t    Preview changes without applying them to the CPU.\n");
+	printf("    -d    Show debug info.\n");
 	printf("    -h    Shows this information.\n");
 	printf("\n");
 	printf("amdctl                    Shows this infortmation.\n");
@@ -263,27 +268,6 @@ void usage() {
 	printf("amdctl -g -c3 -p0         Displays P-state 1 info for core 0.\n");
 	printf("amdctl -v1400 -c2 -p0     Set voltage to 1.4v on cpu 2 P-state 0.\n");
 	exit(EXIT_SUCCESS);
-}
-
-void printPstates() {
-	uint32_t reg = (PSTATE_BASE - 1);
-	if (pstate == -2) {
-		for (pstate = 0; pstate < PSTATES; pstate++) {
-			printf("\tP-State %d\n", pstate);
-			reg += 1;
-			getReg(reg);
-			printBaseFmt();
-		}
-	} else if (pstate == -1) {
-		printf("\tCOFVID Status P-State\n");
-		getReg(COFVID_STATUS);
-		printBaseFmt();
-	} else {
-		printf("\tP-State %d\n", pstate);
-		reg += pstate;
-		getReg(reg);
-		printBaseFmt();
-	}
 }
 
 void printBaseFmt() {
@@ -307,6 +291,7 @@ void printBaseFmt() {
 }
 
 void getReg(const uint32_t reg) {
+	if (debug) { printf("DEBUG: Getting data from CPU %d at register %x\n", core, reg); }
 	char path[32];
 	int fh;
 
@@ -324,6 +309,7 @@ void getReg(const uint32_t reg) {
 }
 
 void setReg(const uint32_t reg, const char *loc, int replacement) {
+	if (debug) { printf("DEBUG: Setting data %d at register %x, location %s for CPU %d\n", replacement, reg, loc, core); }
 	int low, high, fh;
 	char path[32];
 
@@ -386,10 +372,6 @@ int mVToVid(float mV) {
 	float tmpv;
 	float volt = 1550;
 	float mult = 12.5;
-	if (mV > 1550 || mV < 1) {
-		// TODO CHECK ERROR IN ARGV
-		return 0;
-	}
 	if (pvi) {
 		if (mV > 1162.5) {
 			mult = 25;
@@ -403,7 +385,7 @@ int mVToVid(float mV) {
 	for (i = 1; i <= maxVid; i++) {
 		tmpv = volt - i * mult;
 		if (tmpv >= min && tmpv <= max) {
-			printf("Found vid %d for voltage %.2f\n", i, tmpv);
+			if (debug) { printf("Found vid %d for voltage %.2f\n", i, tmpv); }
 			return i;
 		}
 	}
@@ -429,7 +411,7 @@ void calculateDidFid(int mhz, int *retFid, int *retDid) {
 			break;
 		}
 	}
-	printf("Found did %d, fid %d (%dMHz) for wanted %dMHz\n", foundDid, i, tmp_mhz, mhz);
+	if (debug) { printf("Found did %d, fid %d (%dMHz) for wanted %dMHz\n", foundDid, i, tmp_mhz, mhz); }
 	*retFid = i;
 	*retDid = foundDid;
 }
