@@ -309,6 +309,7 @@ void printBaseFmt() {
 void getReg(const uint32_t reg) {
 	char path[32];
 	int fh;
+	uint64_t tmp_buffer = buffer;
 
 	sprintf(path, "/dev/cpu/%d/msr", core);
 	fh = open(path, O_RDONLY);
@@ -316,11 +317,12 @@ void getReg(const uint32_t reg) {
 		error("Could not open CPU for reading! Is the msr kernel module loaded?");
 	}
 
-	if (pread(fh, &buffer, 8, reg) != sizeof buffer) {
+	if (pread(fh, &tmp_buffer, 8, reg) != sizeof tmp_buffer) {
 		close(fh);
 		error("Could not read data from CPU!");
 	}
 	close(fh);
+	buffer = tmp_buffer;
 }
 
 void setReg(const uint32_t reg, const char *loc, int replacement) {
