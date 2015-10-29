@@ -67,18 +67,15 @@ static char *NB_VID_BITS  = "31:25";
 static char *CPU_DID_BITS = "8:6";
 static char *CPU_FID_BITS = "5:0";
 
-static int PSTATES = 8;
 static uint64_t buffer;
-static int cpuFamily = 0, cpuModel = 0, cores = 0, pvi = 0, debug = 0;
-static int core = -1;
-static int pstate = -2;
-static int minMaxVid = 0, testMode = 0;
+static int PSTATES = 8, cpuFamily = 0, cpuModel = 0, cores = 0, pvi = 0, debug = 0,
+minMaxVid = 0, testMode = 0, core = -1, pstate = -2;
 
 int main(int argc, char **argv) {
 	getCpuInfo();
 	checkFamily();
 	
-	int low = 0, high = 0, nv = 0, cv = 0, type = 0;
+	int low = -1, high = -1, nv = 0, cv = 0;
 	int c;
 	while ((c = getopt(argc, argv, "dghtc:l:m:n:p:v:")) != -1) {
 		switch (c) {
@@ -97,21 +94,18 @@ int main(int argc, char **argv) {
 				}
 				break;
 			case 'l':
-				type = 1;
 				low = atoi(optarg);
 				if (low < 0 || low >= PSTATES) {
 					error("Option -l must be less than total number of P-states (8 or 5 depending on CPU).");
 				}
 				break;
 			case 'm':
-				type = 1;
 				high = atoi(optarg);
 				if (high < 0 || high >= PSTATES) {
 					error("Option -m must be less than total number of P-states (8 or 5 depending on CPU).");
 				}
 				break;
 			case 'n':
-				type = 1;
 				nv = atoi(optarg);
 				if (nv < 1 || nv > 1550) {
 					error("Option -n must be between 1 and 1550.");
@@ -125,7 +119,6 @@ int main(int argc, char **argv) {
 					error("Option -p must be -1 or less than total number of P-states (8 or 5 depending on CPU).");
 				}
 			case 'v':
-				type = 1;
 				cv = atoi(optarg);
 				if (cv < 1 || cv > 1550) {
 					error("Option -v must be between 1 and 1550.");
@@ -140,7 +133,7 @@ int main(int argc, char **argv) {
 
 	printf("Voltage ID encodings: %s\n", (pvi ? "PVI (parallel)" : "SVI (serial)"));
 	printf("Detected cpu model %xh, from family %xh with %d cpu cores.\n", cpuModel, cpuFamily, cores);
-	if (type) {
+	if (nv || cv || low || high) {
 		printf("%s\n", (testMode ? "Preview mode On - No P-state values will be changed" : "PREVIEW MODE OFF - P-STATES WILL BE CHANGED"));
 	}
 	
@@ -181,6 +174,16 @@ int main(int argc, char **argv) {
 				setReg(tmp_pstates[i], CPU_VID_BITS, mVToVid(cv));
 			}
 			printBaseFmt();
+			if (low > -1) {
+				setReg(PSTATE_CURRENT_LIMIT, PSTATE_MAX_VAL_BITS, low);
+			}
+			if (high > -1) {
+				setReg(PSTATE_CURRENT_LIMIT, CUR_PSTATE_LIMIT_BITS, high);
+			}
+			getReg(PSTATE_CURRENT_LIMIT);
+			puts("\tP-State Limits:\n");
+			printf("\t\tMin: %d\n", getDec(PSTATE_MAX_VAL_BITS));
+			printf("\t\tMax: %d\n", getDec(CUR_PSTATE_LIMIT_BITS));
 		}
 	}
 
