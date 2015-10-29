@@ -152,7 +152,7 @@ int main(int argc, char **argv) {
 	int pstates_count = 0;
 	if (pstate == -2) {
 		for (; pstates_count < PSTATES; pstates_count++) {
-			tmp_pstates[pstates_count] = (PSTATE_BASE + pstate);
+			tmp_pstates[pstates_count] = (PSTATE_BASE + pstates_count);
 		}
 		tmp_pstates[pstates_count] = COFVID_STATUS;
 	} else if (pstate == -1) {
