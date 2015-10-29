@@ -83,24 +83,7 @@ int main(int argc, char **argv) {
 	
 	int low, high, nv, cv, type = 0;
 	int c;
-	while (1) {
-		static struct option long_options[] = {
-			{"get",     no_argument,       0, 'g'},
-			{"help",    no_argument,       0, 'h'},
-			{"test",    no_argument,       0, 't'},
-			{"cpu",     required_argument, 0, 'c'},
-			{"low",     required_argument, 0, 'l'},
-			{"high",    required_argument, 0, 'm'},
-			{"setnv",   required_argument, 0, 'n'},
-			{"pstate",  required_argument, 0, 'p'},
-			{"setcv",   required_argument, 0, 'v'},
-			{0, 0, 0, 0}
-		};
-		int option_index = 0;
-		c = getopt_long(argc, argv, "ghtc:l:m:n:p:v:", long_options, &option_index);
-		if (c == -1) {
-			usage();
-		}
+	while ((c = getopt(argc, argv, "ghtc:l:m:n:p:v:")) != 1) {
 		
 		switch (c) {
 			case 'g':
@@ -111,28 +94,28 @@ int main(int argc, char **argv) {
 			case 'c':
 				core = atoi(optarg);
 				if (core > cores || core < 0) {
-					error("Option -c / --cpu must be lower or equal to total number of CPU cores.");
+					error("Option -c must be lower or equal to total number of CPU cores.");
 				}
 				break;
 			case 'l':
 				type = 1;
 				low = atoi(optarg);
 				if (low < 0 || low >= PSTATES) {
-					error("Option -l / --low must be less than total number of P-states (8 or 5 depending on CPU).");
+					error("Option -l must be less than total number of P-states (8 or 5 depending on CPU).");
 				}
 				break;
 			case 'm':
 				type = 1;
 				high = atoi(optarg);
 				if (high < 0 || high >= PSTATES) {
-					error("Option -m / --high must be less than total number of P-states (8 or 5 depending on CPU).");
+					error("Option -m must be less than total number of P-states (8 or 5 depending on CPU).");
 				}
 				break;
 			case 'n':
 				type = 1;
 				nv = atoi(optarg);
 				if (nv < 1 || nv > 1550) {
-					error("Option -n / --setnv must be between 1 and 1550.");
+					error("Option -n must be between 1 and 1550.");
 				}
 				break;
 			case 'p':
@@ -140,13 +123,13 @@ int main(int argc, char **argv) {
 				if (pstate >= -1 && pstate < PSTATES) {
 					break;
 				} else {
-					error("Option -p / --pstate must be -1 or less than total number of P-states (8 or 5 depending on CPU).");
+					error("Option -p must be -1 or less than total number of P-states (8 or 5 depending on CPU).");
 				}
 			case 'v':
 				type = 1;
 				cv = atoi(optarg);
 				if (cv < 1 || cv > 1550) {
-					error("Option -v / --setcv must be between 1 and 1550.");
+					error("Option -v must be between 1 and 1550.");
 				}
 				break;
 			case '?':
@@ -237,15 +220,15 @@ void checkFamily() {
 void usage() {
 	printf("WARNING: This software can damage your CPU, use with caution.\n");
 	printf("amdctl [options]\n");
-	printf("    -g  --get      Get P-state information.\n");
-	printf("    -c  --cpu      CPU core to work on. (all cores if not set)\n");
-	printf("    -p  --pstate   P-state to work on. Pass -1 for current P-state info. (all P-states if not set)\n");
-	printf("    -v  --setcv    Set cpu voltage for P-state(millivolts, 1.4volts=1400 millivolts).\n");
-	printf("    -n  --setnv    Set north bridge voltage (millivolts).\n");
-	printf("    -l  --low      Set the lowest useable (non boosted) P-state (all cores if -c not set).\n");
-	printf("    -m  --high     Set the highest useable (non boosted) P-State (all cores if -c not set).\n");
-	printf("    -t  --test     Preview changes without applying them to the CPU.\n");
-	printf("    -h  --help     Shows this information.\n");
+	printf("    -g    Get P-state information.\n");
+	printf("    -c    CPU core to work on. (all cores if not set)\n");
+	printf("    -p    P-state to work on. Pass -1 for current P-state info. (all P-states if not set)\n");
+	printf("    -v    Set cpu voltage for P-state(millivolts, 1.4volts=1400 millivolts).\n");
+	printf("    -n    Set north bridge voltage (millivolts).\n");
+	printf("    -l    Set the lowest useable (non boosted) P-state (all cores if -c not set).\n");
+	printf("    -m    Set the highest useable (non boosted) P-State (all cores if -c not set).\n");
+	printf("    -t    Preview changes without applying them to the CPU.\n");
+	printf("    -h    Shows this information.\n");
 	printf("\n");
 	printf("amdctl                    Shows this infortmation.\n");
 	printf("amdctl -g -c0             Displays all P-state info for core 0.\n");
