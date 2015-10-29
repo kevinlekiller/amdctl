@@ -333,9 +333,7 @@ void printBaseFmt(const int idd) {
 			default:
 				return;
 		}
-		int cpuCurrent = getDec(IDD_VALUE_BITS);
-		int cpuCurrDraw = abs(cpuCurrent / IddDiv);
-		printf("\t\tCore current id         %d\n", cpuCurrent);
+		int cpuCurrDraw = abs(getDec(IDD_VALUE_BITS) / IddDiv);
 		printf("\t\tCore current draw       %dA\n", cpuCurrDraw);
 		printf("\t\tCore power draw         %.2fW\n", ((cpuCurrDraw * cpuVolt) / 1000));
 	}
