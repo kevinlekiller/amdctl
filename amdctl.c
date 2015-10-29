@@ -20,16 +20,18 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <inttypes.h>
+#include <string.h>
 
 void printBaseFmt();
 void printPstates();
 int getDec(const char *);
 void getReg(const uint32_t);
+void setReg(const uint32_t, const char *, int);
 void getVidType();
 float vidTomV(const int);
 int mVToVid(float);
 void defineFamily();
-void setReg(const uint32_t, const char *, int);
+void getCpuInfo();
 void error(const char *);
 void test();
 
@@ -38,7 +40,6 @@ void test();
 #define PSTATE_STATUS        0xc0010063
 #define PSTATE_BASE          0xc0010064
 #define COFVID_STATUS        0xc0010071
-
 
 #define AMD10H 0x10 // K10
 #define AMD11H 0x11 // puma
@@ -61,17 +62,17 @@ void test();
 #define MIN_VID_BITS                 "48:42"
 #define MAX_VID_BITS                 "41:35"
 
-char *NB_VID_BITS  = "31:25";
-char *CPU_DID_BITS = "8:6";
-char *CPU_FID_BITS = "5:0";
+static char *NB_VID_BITS  = "31:25";
+static char *CPU_DID_BITS = "8:6";
+static char *CPU_FID_BITS = "5:0";
 
-int PSTATES = 8;
-uint64_t buffer;
-int core;
-int pvi = 0; // Seems like only some 10h use pvi?
-int cpuFamily;
-int cpuModel;
-int minMaxVid = 1;
+static int PSTATES = 8;
+static uint64_t buffer;
+static int core;
+static int pvi = 0; // Seems like only some 10h use pvi?
+static int cpuFamily = 0;
+static int cpuModel = 0;
+static int minMaxVid = 1;
 
 void defineFamily() {
 	switch (cpuFamily) {
@@ -105,8 +106,7 @@ void defineFamily() {
 
 // TODO parse args
 int main(const int argc, const char *argv[]) {
-	cpuFamily = 16;
-#define FSB_MHZ 200
+	getCpuInfo();
 	defineFamily();
 
 //test();
@@ -118,6 +118,48 @@ int main(const int argc, const char *argv[]) {
 		printPstates();
 	}
 	return EXIT_SUCCESS;
+}
+
+void getCpuInfo() {
+	FILE *fp;
+	char buff[8192];
+	
+	fp = fopen("/proc/cpuinfo", "r");
+	if (fp == NULL) {
+		error("Could not open /proc/cpuinfo for reading.");
+	}
+
+	while(fgets(buff, 8192, fp)) {
+		printf("%s\n", buff);
+		if (strstr(buff, "vendor_id") != NULL && strstr(buff, "AMD") == NULL) {
+			error("Processor is not an AMD?");
+		} else if (strstr(buff, "cpu family") != NULL) {
+			sscanf(buff, "%*s %*s : %d", &cpuFamily);
+		} else if (strstr(buff, "model") != NULL) {
+			sscanf(buff, "%*s : %d", &cpuModel);
+		}
+		if (cpuFamily && cpuModel) {
+			break;
+		}
+	}
+	
+	fclose(fp);
+	if (!cpuModel || !cpuFamily) {
+		error("Could not find CPU family or model!");
+	}
+	printf("Detect cpu model %x, from family %x\n", cpuModel, cpuFamily);
+}
+
+void usage() {
+	printf("WARNING: This software can damage your CPU, use with caution.\n");
+	printf("amdctl [options]\n");
+	printf("    -g  --get      Get P-state information.\n");
+	printf("    -c  --cpu      CPU core to work on. (all cores if not set)\n");
+	printf("    -p  --pstate   P-state to work on. (all P-states if not set)\n");
+	printf("    -v  --setcv    Set cpu voltage for P-state(millivolts, 1.4volts=1400 millivolts).\n");
+	printf("    -n  --setnv    Set north bridge voltage (millivolts).\n");
+	printf("    -t  --test     Show changes without applying them to the CPU.\n");
+	printf("    -h  --help     Shows this informations.\n");
 }
 
 // Test setting voltage to 1450mV on P-State 0 of core 0
@@ -158,7 +200,7 @@ void printBaseFmt() {
 	int NbVid  = getDec(NB_VID_BITS);
 	float NbVolt = vidTomV(NbVid);
 	int CpuMult = ((CpuFid + 0x10) / (2 ^ CpuDid));
-	float CpuFreq = ((100 * (CpuFid + 16)) >> CpuDid);
+	float CpuFreq = ((100 * (CpuFid + 0x10)) >> CpuDid);
 
 	printf("\t\tCPU voltage id          %d\n", CpuVid);
 	printf("\t\tCPU divisor id          %d\n", CpuDid);
@@ -282,10 +324,9 @@ int mVToVid(float mV) {
 // Ported from k10ctl
 void getVidType() {
 	int fh;
-	char *path = "/proc/bus/pci/00/18.3";
 	char buff[256];
 
-	fh = open(path, O_RDONLY);
+	fh = open("/proc/bus/pci/00/18.3", O_RDONLY);
 	if (fh < 0) {
 		error("Unsupported CPU? Could not open /proc/bus/pci/00/18.3");
 	}
