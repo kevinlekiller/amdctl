@@ -37,7 +37,6 @@ void error(const char *);
 void usage();
 
 #define PSTATE_CURRENT_LIMIT 0xc0010061
-#define PSTATE_CONTROL       0xc0010062
 #define PSTATE_STATUS        0xc0010063
 #define PSTATE_BASE          0xc0010064
 #define COFVID_STATUS        0xc0010071
@@ -53,15 +52,10 @@ void usage();
 
 #define PSTATE_MAX_VAL_BITS          "6:4"
 #define CUR_PSTATE_LIMIT_BITS        "2:0"
-#define PSTATE_CMD_BITS              "2:0"
 #define CUR_PSTATE_BITS              "2:0"
 #define IDD_DIV_BITS                 "41:40"
 #define IDD_VALUE_BITS               "39:32"
 #define CPU_VID_BITS                 "15:9"
-#define COFVID_CUR_PSTATE_LIMIT_BITS "58:56"
-#define MAX_CPU_COF_BITS             "54:49"
-#define MIN_VID_BITS                 "48:42"
-#define MAX_VID_BITS                 "41:35"
 
 static char *NB_VID_BITS  = "31:25";
 static char *CPU_DID_BITS = "8:6";
@@ -274,6 +268,10 @@ void checkFamily() {
 
 void usage() {
 	printf("WARNING: This software can damage your CPU, use with caution.\n");
+	printf("Tool for under/over clocking/volting AMD CPU's.\n");
+	printf("Supported AMD CPU families: 10h,11h,12h,13h,15h,16h\n");
+	printf("These AMD CPU families are unsupported: 14h,17h, anything older than 10h or newer than 17h\n");
+	printf("Usage:\n");
 	printf("amdctl [options]\n");
 	printf("    -g    Get P-State information.\n");
 	printf("    -c    CPU core to work on.\n");
