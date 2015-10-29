@@ -274,22 +274,28 @@ void checkFamily() {
 void usage() {
 	printf("WARNING: This software can damage your CPU, use with caution.\n");
 	printf("amdctl [options]\n");
-	printf("    -g    Get P-state information.\n");
-	printf("    -c    CPU core to work on. (all cores if not set)\n");
-	printf("    -p    P-state to work on. (all P-states if not set)\n");
-	printf("    -v    Set cpu voltage for P-state(millivolts, 1.4volts=1400 millivolts).\n");
+	printf("    -g    Get P-State information.\n");
+	printf("    -c    CPU core to work on.\n");
+	printf("    -p    P-state to work on.\n");
+	printf("    -v    Set cpu voltage for P-state(millivolts).\n");
 	printf("    -n    Set north bridge voltage (millivolts).\n");
-	printf("    -l    Set the lowest useable (non boosted) P-state (all cores if -c not set).\n");
-	printf("    -m    Set the highest useable (non boosted) P-State (all cores if -c not set).\n");
+	printf("    -l    Set the lowest useable (non turbo) P-State for the core(s).\n");
+	printf("    -m    Set the highest useable (non turbo) P-State for the core(s).\n");
 	printf("    -t    Preview changes without applying them to the CPU.\n");
-	printf("    -s    Set the CPU frequency speed in MHz.\n");
+	printf("    -s    Set the CPU frequency speed in MHz .\n");
 	printf("    -d    Show debug info.\n");
 	printf("    -h    Shows this information.\n");
-	printf("\n");
-	printf("amdctl                    Shows this infortmation.\n");
-	printf("amdctl -g -c0             Displays all P-state info for core 0.\n");
-	printf("amdctl -g -c3 -p0         Displays P-state 1 info for core 0.\n");
-	printf("amdctl -v1400 -c2 -p0     Set voltage to 1.4v on cpu 2 P-state 0.\n");
+	printf("Notes:\n");
+	printf("    1 volt = 1000 millivolts.\n");
+	printf("    All P-States are assumed if -p is not set.\n");
+	printf("    All CPU cores assumed if -c is not set.\n");
+	printf("Examples:\n");
+	printf("    amdctl                      Shows this infortmation.\n");
+	printf("    amdctl -g -c0               Displays all P-State info for CPU core 0.\n");
+	printf("    amdctl -g -c3 -p1           Displays P-State 1 info for CPU core 3.\n");
+	printf("    amdctl -v1400 -c2 -p0       Set CPU voltage to 1.4v on CPU core 2 P-State 0.\n");
+	printf("    amdctl -v1350 -p1           Set CPU voltage to 1.35v for P-State 1 on all cores.\n");
+	printf("    amdctl -s3000 -v1300 -p1    Set CPU clock speed to 3ghz, cpu voltage to 1.3v for P-State on all cores.\n");
 	exit(EXIT_SUCCESS);
 }
 
@@ -297,20 +303,16 @@ void printBaseFmt() {
 	int CpuVid = getDec(CPU_VID_BITS);
 	int CpuDid = getDec(CPU_DID_BITS);
 	int CpuFid = getDec(CPU_FID_BITS);
-	float CpuVolt = vidTomV(CpuVid);
 	int NbVid  = getDec(NB_VID_BITS);
-	float NbVolt = vidTomV(NbVid);
-	int CpuMult = ((CpuFid + 0x10) / (2 ^ CpuDid));
-	float CpuFreq = ((100 * (CpuFid + 0x10)) >> CpuDid);
 
 	printf("\t\tCPU voltage id          %d\n", CpuVid);
 	printf("\t\tCPU divisor id          %d\n", CpuDid);
 	printf("\t\tCPU frequency id        %d\n", CpuFid);
-	printf("\t\tCPU multiplier          %dx\n", CpuMult);
-	printf("\t\tCPU frequency           %.2fMHz\n", CpuFreq);
-	printf("\t\tCPU voltgage            %.2fmV\n", CpuVolt);
+	printf("\t\tCPU multiplier          %dx\n", ((CpuFid + 0x10) / (2 ^ CpuDid)));
+	printf("\t\tCPU frequency           %dMHz\n", ((100 * (CpuFid + 0x10)) >> CpuDid));
+	printf("\t\tCPU voltgage            %.2fmV\n", vidTomV(CpuVid));
 	printf("\t\tNorth Bridge voltage id %d\n", NbVid);
-	printf("\t\tNorth Bridge voltage    %.2fmV\n", NbVolt);
+	printf("\t\tNorth Bridge voltage    %.2fmV\n", vidTomV(NbVid));
 }
 
 void getReg(const uint32_t reg) {
