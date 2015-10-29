@@ -247,7 +247,6 @@ void checkFamily() {
 			CPU_FID_BITS = "3:0";
 			break;
 		case AMD11H:
-		case AMD13H:
 			break;
 		case AMD15H:
 			if (cpuModel > 0x0f) {
@@ -259,6 +258,7 @@ void checkFamily() {
 			minMaxVid = 0;
 			NB_VID_BITS = "31:24";
 			break;
+		case AMD13H:
 		case AMD14H: // Disabled due to differences in cpu vid / did / fid
 		case AMD17H: // Disabled because no BKDG currently.
 		default:
@@ -269,8 +269,8 @@ void checkFamily() {
 void usage() {
 	printf("WARNING: This software can damage your CPU, use with caution.\n");
 	printf("Tool for under/over clocking/volting AMD CPU's.\n");
-	printf("Supported AMD CPU families: 10h,11h,12h,13h,15h,16h\n");
-	printf("These AMD CPU families are unsupported: 14h,17h, anything older than 10h or newer than 17h\n");
+	printf("Supported AMD CPU families: 10h,11h,12h,15h,16h\n");
+	printf("These AMD CPU families are unsupported: 13h,14h,17h, anything older than 10h or newer than 17h\n");
 	printf("Usage:\n");
 	printf("amdctl [options]\n");
 	printf("    -g    Get P-State information.\n");
