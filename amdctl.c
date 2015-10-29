@@ -277,12 +277,12 @@ void usage() {
 	printf("    -g    Get P-State information.\n");
 	printf("    -c    CPU core to work on.\n");
 	printf("    -p    P-state to work on.\n");
-	printf("    -v    Set cpu voltage for P-state(millivolts).\n");
+	printf("    -v    Set cpu voltage for P-state (millivolts).\n");
 	printf("    -n    Set north bridge voltage (millivolts).\n");
 	printf("    -l    Set the lowest useable (non turbo) P-State for the core(s).\n");
 	printf("    -m    Set the highest useable (non turbo) P-State for the core(s).\n");
 	printf("    -t    Preview changes without applying them to the CPU.\n");
-	printf("    -s    Set the CPU frequency speed in MHz .\n");
+	printf("    -s    Set the CPU frequency speed in MHz.\n");
 	printf("    -d    Show debug info.\n");
 	printf("    -h    Shows this information.\n");
 	printf("Notes:\n");
