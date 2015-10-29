@@ -470,12 +470,12 @@ void getVidType() {
 
 	fh = open("/proc/bus/pci/00/18.3", O_RDONLY);
 	if (fh < 0) {
-		error("Unsupported CPU? Could not open /proc/bus/pci/00/18.3 ; Do you have the required permissions to read this file?");
+		error("Could not open /proc/bus/pci/00/18.3 ; Unsupported CPU? ; Do you have the required permissions to read this file?");
 	}
 
 	if (read(fh, &buff, 256) != 256) {
 		close(fh);
-		error("Could not read data from /proc/bus/pci/00/18.3 ; Unsupported CPU?");
+		error("Could not read data from /proc/bus/pci/00/18.3 ; Unsupported CPU? ; Do you have the required permissions to read this file?");
 	}
 	close(fh);
 
