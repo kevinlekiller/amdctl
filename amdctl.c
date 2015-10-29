@@ -82,7 +82,6 @@ int main(int argc, char **argv) {
 	int low, high, nv, cv, type = 0;
 	int c;
 	while ((c = getopt(argc, argv, "ghtc:l:m:n:p:v:")) != -1) {
-		
 		switch (c) {
 			case 'g':
 				break;
@@ -155,11 +154,11 @@ int main(int argc, char **argv) {
 		for (; pstates_count < PSTATES; pstates_count++) {
 			tmp_pstates[pstates_count] = (PSTATE_BASE + pstate);
 		}
-		tmp_pstates[pstates_count + 1] = COFVID_STATUS;
+		tmp_pstates[pstates_count] = COFVID_STATUS;
 	} else if (pstate == -1) {
-		tmp_pstates[0] = PSTATE_BASE;
-	} else {
 		tmp_pstates[0] = COFVID_STATUS;
+	} else {
+		tmp_pstates[0] = PSTATE_BASE - 1 + pstate;
 	}
 	pstates_count++;
 
