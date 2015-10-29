@@ -251,6 +251,7 @@ void usage() {
 	printf("amdctl -g -c0             Displays all P-state info for core 0.\n");
 	printf("amdctl -g -c3 -p0         Displays P-state 1 info for core 0.\n");
 	printf("amdctl -v1400 -c2 -p0     Set voltage to 1.4v on cpu 2 P-state 0.\n");
+	exit(EXIT_SUCCESS);
 }
 
 void printPstates() {
