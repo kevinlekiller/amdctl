@@ -83,7 +83,7 @@ int main(int argc, char **argv) {
 	
 	int low, high, nv, cv, type = 0;
 	int c;
-	while ((c = getopt(argc, argv, "ghtc:l:m:n:p:v:")) != 1) {
+	while ((c = getopt(argc, argv, "ghtc:l:m:n:p:v:")) != -1) {
 		
 		switch (c) {
 			case 'g':
