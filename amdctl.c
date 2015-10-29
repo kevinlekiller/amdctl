@@ -79,8 +79,6 @@ int main(int argc, char **argv) {
 	getCpuInfo();
 	checkFamily();
 	
-	printf("Voltage ID encodings: %s\n", (pvi ? "PVI (parallel)" : "SVI (serial)"));
-	
 	int low, high, nv, cv, type = 0;
 	int c;
 	while ((c = getopt(argc, argv, "ghtc:l:m:n:p:v:")) != -1) {
@@ -138,7 +136,9 @@ int main(int argc, char **argv) {
 				usage();
 		}
 	}
-	
+
+	printf("Voltage ID encodings: %s\n", (pvi ? "PVI (parallel)" : "SVI (serial)"));
+	printf("Detected cpu model %xh, from family %xh with %d cpu cores.\n", cpuModel, cpuFamily, cores);
 	if (type) {
 		printf("%s\n", (testMode ? "Preview mode On - No P-state values will be changed" : "PREVIEW MODE OFF - P-STATES WILL BE CHANGED"));
 	}
@@ -149,8 +149,29 @@ int main(int argc, char **argv) {
 		cores = core + 1;
 	}
 
+	int tmp_pstates[PSTATES];
+	int pstates_count = 0;
+	if (pstate == -2) {
+		for (; pstates_count < PSTATES; pstates_count++) {
+			tmp_pstates[pstates_count] = (PSTATE_BASE + pstate);
+		}
+		tmp_pstates[pstates_count + 1] = COFVID_STATUS;
+	} else if (pstate == -1) {
+		tmp_pstates[0] = PSTATE_BASE;
+	} else {
+		tmp_pstates[0] = COFVID_STATUS;
+	}
+	pstates_count++;
+
 	for (; core < cores; core++) {
 		printf("CPU Core %d\n", core);
+		for (int i = 0; i < pstates_count; i++){
+			if (tmp_pstates[i] == COFVID_STATUS){
+				puts("P-State: Current");
+			} else {
+				printf("P-State: %d\n", i);
+			}
+		}
 	}
 
 	return EXIT_SUCCESS;
@@ -184,7 +205,6 @@ void getCpuInfo() {
 	if (!cpuModel || !cpuFamily || !cores) {
 		error("Could not find CPU family or model!");
 	}
-	printf("Detected cpu model %xh, from family %xh with %d cpu cores.\n", cpuModel, cpuFamily, cores);
 }
 
 void checkFamily() {
