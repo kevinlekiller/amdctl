@@ -73,6 +73,7 @@ static int pvi = 0; // Seems like only some 10h use pvi?
 static int cpuFamily = 0;
 static int cpuModel = 0;
 static int minMaxVid = 1;
+static int testMode = 1;
 
 void defineFamily() {
 	switch (cpuFamily) {
@@ -233,7 +234,6 @@ void getReg(const uint32_t reg) {
 void setReg(const uint32_t reg, const char *loc, int replacement) {
 	int low;
 	int high;
-	uint64_t temp_buffer = buffer;
 	char path[32];
 	int fh;
 
@@ -244,19 +244,21 @@ void setReg(const uint32_t reg, const char *loc, int replacement) {
 		high = temp;
 	}
 
-	temp_buffer = ((temp_buffer & (~(high << low))) | (replacement << low));
+	buffer = ((buffer & (~(high << low))) | (replacement << low));
 
-	sprintf(path, "/dev/cpu/%d/msr", core);
-	fh = open(path, O_WRONLY);
-	if (fh < 0) {
-		error("Could not open CPU for writing!");
-	}
+	if (!testMode) {
+		sprintf(path, "/dev/cpu/%d/msr", core);
+		fh = open(path, O_WRONLY);
+		if (fh < 0) {
+			error("Could not open CPU for writing!");
+		}
 
-	if (pwrite(fh, &temp_buffer, sizeof temp_buffer, reg) != sizeof temp_buffer) {
+		if (pwrite(fh, &buffer, sizeof buffer, reg) != sizeof buffer) {
+			close(fh);
+			error("Could not change value!");
+		}
 		close(fh);
-		error("Could not change value!");
 	}
-	close(fh);
 }
 
 int getDec(const char *loc) {
