@@ -116,7 +116,7 @@ int main(int argc, char **argv) {
 				if (pstate > -1 && pstate < PSTATES) {
 					break;
 				} else {
-					error("Option -p must be -1 or less than total number of P-states (8 or 5 depending on CPU).");
+					error("Option -p must be less than total number of P-states (8 or 5 depending on CPU).");
 				}
 			case 'v':
 				cv = atoi(optarg);
@@ -150,9 +150,9 @@ int main(int argc, char **argv) {
 			tmp_pstates[pstates_count] = (PSTATE_BASE + pstates_count);
 		}
 	} else {
-		tmp_pstates[0] = PSTATE_BASE - 1 + pstate;
+		tmp_pstates[0] = PSTATE_BASE + pstate;
+		pstates_count = 1;
 	}
-	pstates_count++;
 
 	for (; core < cores; core++) {
 		printf("CPU Core %d\n", core);
@@ -179,7 +179,7 @@ int main(int argc, char **argv) {
 			setReg(PSTATE_CURRENT_LIMIT, CUR_PSTATE_LIMIT_BITS, high);
 		}
 		getReg(PSTATE_CURRENT_LIMIT);
-		puts("\tP-State Limits:\n");
+		puts("\tP-State Limits:");
 		printf("\t\tMin: %d\n", getDec(PSTATE_MAX_VAL_BITS) + 1);
 		printf("\t\tMax: %d\n", getDec(CUR_PSTATE_LIMIT_BITS) + 1);
 	}
