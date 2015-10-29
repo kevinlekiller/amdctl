@@ -36,7 +36,6 @@ void getCpuInfo();
 void checkFamily();
 void error(const char *);
 void usage();
-void test();
 
 #define PSTATE_CURRENT_LIMIT 0xc0010061
 #define PSTATE_CONTROL       0xc0010062
@@ -71,21 +70,21 @@ static char *CPU_FID_BITS = "5:0";
 
 static int PSTATES = 8;
 static uint64_t buffer;
-static int cpuFamily, cpuModel, cores, core, pvi = 0;
-static int minMaxVid, testMode = 1;
+static int cpuFamily, cpuModel, cores, pvi = 0;
+static int core = -1;
+static int pstate = -2;
+static int minMaxVid, testMode = 0;
 
 int main(int argc, char **argv) {
 	getCpuInfo();
 	checkFamily();
 	
+	printf("Voltage ID encodings: %s\n", (pvi ? "PVI (parallel)" : "SVI (serial)"));
+	
+	int low, high, nv, cv, type = 0;
 	int c;
 	while (1) {
 		static struct option long_options[] = {
-			/* These options set a flag. */
-			//{"verbose", no_argument,       &verbose_flag, 1},
-			//{"brief",   no_argument,       &verbose_flag, 0},
-			/* These options don’t set a flag.
-			 *        We distinguish them by their indices. */
 			{"get",     no_argument,       0, 'g'},
 			{"help",    no_argument,       0, 'h'},
 			{"test",    no_argument,       0, 't'},
@@ -99,45 +98,56 @@ int main(int argc, char **argv) {
 		};
 		int option_index = 0;
 		c = getopt_long(argc, argv, "ghtc:l:m:n:p:v:", long_options, &option_index);
-
 		if (c == -1) {
-			break;
+			usage();
 		}
 		
 		switch (c) {
-			case 0:
-				/* If this option set a flag, do nothing else now. */
-				if (long_options[option_index].flag != 0)
-					break;
-				printf ("option %s", long_options[option_index].name);
-				if (optarg)
-					printf (" with arg %s", optarg);
-				printf ("\n");
-				break;
-				
 			case 'g':
-				puts("option -g\n");
 				break;
 			case 't':
-				puts("option -g\n");
+				testMode = 1;
 				break;
 			case 'c':
-				printf("option -c with value `%s'\n", optarg);
+				core = atoi(optarg);
+				if (core > cores || core < 0) {
+					error("Option -c / --cpu must be lower or equal to total number of CPU cores.");
+				}
 				break;
 			case 'l':
-				printf("option -l with value `%s'\n", optarg);
+				type = 1;
+				low = atoi(optarg);
+				if (low < 0 || low >= PSTATES) {
+					error("Option -l / --low must be less than total number of P-states (8 or 5 depending on CPU).");
+				}
 				break;
 			case 'm':
-				printf("option -m with value `%s'\n", optarg);
+				type = 1;
+				high = atoi(optarg);
+				if (high < 0 || high >= PSTATES) {
+					error("Option -m / --high must be less than total number of P-states (8 or 5 depending on CPU).");
+				}
 				break;
 			case 'n':
-				printf("option -n with value `%s'\n", optarg);
+				type = 1;
+				nv = atoi(optarg);
+				if (nv < 1 || nv > 1550) {
+					error("Option -n / --setnv must be between 1 and 1550.");
+				}
 				break;
 			case 'p':
-				printf("option -p with value `%s'\n", optarg);
-				break;
+				pstate = atoi(optarg);
+				if (pstate >= -1 && pstate < PSTATES) {
+					break;
+				} else {
+					error("Option -p / --pstate must be -1 or less than total number of P-states (8 or 5 depending on CPU).");
+				}
 			case 'v':
-				printf("option -v with value `%s'\n", optarg);
+				type = 1;
+				cv = atoi(optarg);
+				if (cv < 1 || cv > 1550) {
+					error("Option -v / --setcv must be between 1 and 1550.");
+				}
 				break;
 			case '?':
 			case 'h':
@@ -146,13 +156,20 @@ int main(int argc, char **argv) {
 		}
 	}
 	
-	return 0;
-
-	printf("Voltage ID encodings: %s\n", (pvi ? "PVI (parallel)" : "SVI (serial)"));
-	for (core = 0; core < cores; core++) {
-		printf("CPU Core %d\n", core);
-		printPstates();
+	if (type) {
+		printf("%s\n", (testMode ? "Preview mode On - No P-state values will be changed" : "PREVIEW MODE OFF - P-STATES WILL BE CHANGED"));
 	}
+	
+	if (core == -1) {
+		core = 0;
+	} else {
+		cores = core + 1;
+	}
+
+	for (; core < cores; core++) {
+		printf("CPU Core %d\n", core);
+	}
+
 	return EXIT_SUCCESS;
 }
 
@@ -222,7 +239,7 @@ void usage() {
 	printf("amdctl [options]\n");
 	printf("    -g  --get      Get P-state information.\n");
 	printf("    -c  --cpu      CPU core to work on. (all cores if not set)\n");
-	printf("    -p  --pstate   P-state to work on. (all P-states if not set)\n");
+	printf("    -p  --pstate   P-state to work on. Pass -1 for current P-state info. (all P-states if not set)\n");
 	printf("    -v  --setcv    Set cpu voltage for P-state(millivolts, 1.4volts=1400 millivolts).\n");
 	printf("    -n  --setnv    Set north bridge voltage (millivolts).\n");
 	printf("    -l  --low      Set the lowest useable (non boosted) P-state (all cores if -c not set).\n");
@@ -236,34 +253,25 @@ void usage() {
 	printf("amdctl -v1400 -c2 -p0     Set voltage to 1.4v on cpu 2 P-state 0.\n");
 }
 
-// Test setting voltage to 1450mV on P-State 0 of core 0
-void test() {
-	core = 0; // Sets CPU core to 0.
-	getReg(PSTATE_BASE);  // Gets the info for P-State 0
-	printBaseFmt(); // Prints the info.
-	int oldVolt = vidTomV(getDec(CPU_VID_BITS)); // Get voltage of p-state.
-	setReg(PSTATE_BASE, CPU_VID_BITS, mVToVid((oldVolt - 25))); // Reduces voltage for CPU 0 P-State 0 by 0.025v
-	getReg(PSTATE_BASE); // Get info for P-State 0
-	printBaseFmt(); // Print infor for P-State 0.
-	setReg(PSTATE_BASE, CPU_VID_BITS, mVToVid(oldVolt)); // Reset voltage to normal.
-	getReg(PSTATE_BASE); // Get info for P-State 0
-	printBaseFmt(); // Print infor for P-State 0.
-	exit(EXIT_SUCCESS);
-}
-
 void printPstates() {
-	int pstate;
 	uint32_t reg = (PSTATE_BASE - 1);
-	for (pstate = 0; pstate < PSTATES; pstate++) {
+	if (pstate == -2) {
+		for (pstate = 0; pstate < PSTATES; pstate++) {
+			printf("\tP-State %d\n", pstate);
+			reg += 1;
+			getReg(reg);
+			printBaseFmt();
+		}
+	} else if (pstate == -1) {
+		printf("\tCOFVID Status P-State\n");
+		getReg(COFVID_STATUS);
+		printBaseFmt();
+	} else {
 		printf("\tP-State %d\n", pstate);
-		reg += 1;
+		reg += pstate;
 		getReg(reg);
 		printBaseFmt();
 	}
-
-	printf("\tCOFVID Status P-State\n");
-	getReg(COFVID_STATUS);
-	printBaseFmt();
 }
 
 void printBaseFmt() {
