@@ -69,14 +69,14 @@ static char *CPU_FID_BITS = "5:0";
 
 static uint64_t buffer;
 static int PSTATES = 8, cpuFamily = 0, cpuModel = 0, cores = 0, pvi = 0, debug = 0,
-minMaxVid = 0, testMode = 0, core = -1, pstate = -1;
+minMaxVid = 0, testMode = 0, core = -1, pstate = -1, writeReg = 1;
 
 int main(int argc, char **argv) {
 	getCpuInfo();
 	checkFamily();
 	
-	int low = -1, high = -1, nv = 0, cv = 0, c, opts = 0;
-	while ((c = getopt(argc, argv, "gdhtc:l:m:n:p:v:")) != -1) {
+	int low = -1, high = -1, nv = 0, cv = 0, c, opts = 0, cpuSpeed = 0;
+	while ((c = getopt(argc, argv, "gdhtc:l:m:n:p:v:s:")) != -1) {
 		opts = 1;
 		switch (c) {
 			case 'g':
@@ -118,6 +118,12 @@ int main(int argc, char **argv) {
 				} else {
 					error("Option -p must be less than total number of P-states (8 or 5 depending on CPU).");
 				}
+			case 's':
+				cpuSpeed = atoi(optarg);
+				if (cpuSpeed < 100 || cpuSpeed > 6300) {
+					error("Option -s must be between 100 and 6300.");
+				}
+				break;
 			case 'v':
 				cv = atoi(optarg);
 				if (cv < 1 || cv > 1550) {
@@ -157,6 +163,12 @@ int main(int argc, char **argv) {
 		tmp_pstates[0] = PSTATE_BASE + pstate;
 		pstates_count = 1;
 	}
+	
+	int fndCpuDid, fndCpuFid;
+	if (cpuSpeed) {
+		int *fndCpuDidp = &fndCpuDid, *fndCpuFidp = &fndCpuFid;
+		calculateDidFid(cpuSpeed, fndCpuDidp, fndCpuFidp);
+	}
 
 	for (; core < cores; core++) {
 		printf("CPU Core %d\n", core);
@@ -169,6 +181,12 @@ int main(int argc, char **argv) {
 			}
 			if (cv > 0) {
 				setReg(tmp_pstates[i], CPU_VID_BITS, mVToVid(cv));
+			}
+			if (cpuSpeed) {
+				writeReg = 0;
+				setReg(tmp_pstates[i], CPU_DID_BITS, fndCpuDid);
+				writeReg = 1;
+				setReg(tmp_pstates[i], CPU_FID_BITS, fndCpuFid);
 			}
 			printBaseFmt();
 		}
@@ -264,6 +282,7 @@ void usage() {
 	printf("    -l    Set the lowest useable (non boosted) P-state (all cores if -c not set).\n");
 	printf("    -m    Set the highest useable (non boosted) P-State (all cores if -c not set).\n");
 	printf("    -t    Preview changes without applying them to the CPU.\n");
+	printf("    -s    Set the CPU frequency speed in MHz.\n");
 	printf("    -d    Show debug info.\n");
 	printf("    -h    Shows this information.\n");
 	printf("\n");
@@ -326,7 +345,7 @@ void setReg(const uint32_t reg, const char *loc, int replacement) {
 
 	buffer = ((buffer & (~(high << low))) | (replacement << low));
 
-	if (!testMode) {
+	if (!testMode && writeReg) {
 		sprintf(path, "/dev/cpu/%d/msr", core);
 		fh = open(path, O_WRONLY);
 		if (fh < 0) {
@@ -396,7 +415,7 @@ int mVToVid(float mV) {
 	return 0;
 }
 
-void calculateDidFid(int mhz, int *retFid, int *retDid) {
+void calculateDidFid(int mhz, int *retDid, int *retFid) {
 	int foundDid,i, tmp_mhz = 0;
 	if (mhz >= 1600) {
 		foundDid = 0x0;
