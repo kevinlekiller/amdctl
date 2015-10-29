@@ -75,9 +75,9 @@ int main(int argc, char **argv) {
 	getCpuInfo();
 	checkFamily();
 	
-	int low = -1, high = -1, nv = 0, cv = 0;
-	int c;
-	while ((c = getopt(argc, argv, "dghtc:l:m:n:p:v:")) != -1) {
+	int low = -1, high = -1, nv = 0, cv = 0, c, opts = 0;
+	while ((c = getopt(argc, argv, "gdhtc:l:m:n:p:v:")) != -1) {
+		opts = 1;
 		switch (c) {
 			case 'g':
 				break;
@@ -129,6 +129,10 @@ int main(int argc, char **argv) {
 			default:
 				usage();
 		}
+	}
+	
+	if (!opts) {
+		usage();
 	}
 
 	printf("Voltage ID encodings: %s\n", (pvi ? "PVI (parallel)" : "SVI (serial)"));
