@@ -305,19 +305,37 @@ void printBaseFmt(const int idd) {
 	const int CpuDid = getDec(CPU_DID_BITS);
 	const int CpuFid = getDec(CPU_FID_BITS);
 	const int NbVid  = getDec(NB_VID_BITS);
+	const float cpuVolt = vidTomV(CpuVid);
 
 	printf("\t\tCPU voltage id          %d\n", CpuVid);
 	printf("\t\tCPU divisor id          %d\n", CpuDid);
 	printf("\t\tCPU frequency id        %d\n", CpuFid);
 	printf("\t\tCPU multiplier          %dx\n", ((CpuFid + 0x10) / (2 ^ CpuDid)));
 	printf("\t\tCPU frequency           %dMHz\n", ((100 * (CpuFid + 0x10)) >> CpuDid));
-	printf("\t\tCPU voltgage            %.2fmV\n", vidTomV(CpuVid));
+	printf("\t\tCPU voltgage            %.2fmV\n", cpuVolt);
 	printf("\t\tNorth Bridge voltage id %d\n", NbVid);
 	printf("\t\tNorth Bridge voltage    %.2fmV\n", vidTomV(NbVid));
 	
 	if (idd) {
 		int IddDiv = getDec(IDD_DIV_BITS);
-		printf("IddDiv: %d\n", IddDiv);
+		printf("\t\tCPU current divisor id  %d\n", IddDiv);
+		switch (IddDiv) {
+			case 0b00:
+				IddDiv = 1;
+				break;
+			case 0b01:
+				IddDiv = 10;
+				break;
+			case 0b10:
+				IddDiv = 100;
+				break;
+			case 0b11:
+			default:
+				return;
+		}
+		float cpuCurrent = (getDec(IDD_VALUE_BITS) / IddDiv);
+		printf("\t\tCPU current draw       %2.fA\n", cpuCurrent);
+		printf("\t\tCPU power draw         %2.fmW\n", (cpuCurrent * (cpuVolt / 1000)));
 	}
 }
 
