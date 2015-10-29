@@ -96,13 +96,13 @@ int main(int argc, char **argv) {
 			case 'l':
 				low = atoi(optarg);
 				if (low < 0 || low >= PSTATES) {
-					error("Option -l must be less than total number of P-states (8 or 5 depending on CPU).");
+					error("Option -l must be less than total number of P-States (8 or 5 depending on CPU).");
 				}
 				break;
 			case 'm':
 				high = atoi(optarg);
 				if (high < 0 || high >= PSTATES) {
-					error("Option -m must be less than total number of P-states (8 or 5 depending on CPU).");
+					error("Option -m must be less than total number of P-States (8 or 5 depending on CPU).");
 				}
 				break;
 			case 'n':
@@ -116,7 +116,7 @@ int main(int argc, char **argv) {
 				if (pstate > -1 && pstate < PSTATES) {
 					break;
 				} else {
-					error("Option -p must be less than total number of P-states (8 or 5 depending on CPU).");
+					error("Option -p must be less than total number of P-States (8 or 5 depending on CPU).");
 				}
 			case 's':
 				cpuSpeed = atoi(optarg);
@@ -142,9 +142,9 @@ int main(int argc, char **argv) {
 	}
 
 	printf("Voltage ID encodings: %s\n", (pvi ? "PVI (parallel)" : "SVI (serial)"));
-	printf("Detected cpu model %xh, from family %xh with %d cpu cores.\n", cpuModel, cpuFamily, cores);
+	printf("Detected CPU model %xh, from family %xh with %d CPU cores.\n", cpuModel, cpuFamily, cores);
 	if (nv || cv || low > -1 || high > -1) {
-		printf("%s\n", (testMode ? "Preview mode On - No P-state values will be changed" : "PREVIEW MODE OFF - P-STATES WILL BE CHANGED"));
+		printf("%s\n", (testMode ? "Preview mode On - No P-State values will be changed." : "PREVIEW MODE OFF - P-STATES WILL BE CHANGED!"));
 	}
 	
 	if (core == -1) {
@@ -277,10 +277,10 @@ void usage() {
 	printf("    -g    Get P-State information.\n");
 	printf("    -c    CPU core to work on.\n");
 	printf("    -p    P-state to work on.\n");
-	printf("    -v    Set cpu voltage for P-state (millivolts).\n");
+	printf("    -v    Set CPU voltage for P-state (millivolts).\n");
 	printf("    -n    Set north bridge voltage (millivolts).\n");
-	printf("    -l    Set the lowest useable (non turbo) P-State for the core(s).\n");
-	printf("    -m    Set the highest useable (non turbo) P-State for the core(s).\n");
+	printf("    -l    Set the lowest useable (non turbo) P-State for the CPU core(s).\n");
+	printf("    -m    Set the highest useable (non turbo) P-State for the CPU core(s).\n");
 	printf("    -t    Preview changes without applying them to the CPU.\n");
 	printf("    -s    Set the CPU frequency speed in MHz.\n");
 	printf("    -d    Show debug info.\n");
@@ -294,8 +294,8 @@ void usage() {
 	printf("    amdctl -g -c0               Displays all P-State info for CPU core 0.\n");
 	printf("    amdctl -g -c3 -p1           Displays P-State 1 info for CPU core 3.\n");
 	printf("    amdctl -v1400 -c2 -p0       Set CPU voltage to 1.4v on CPU core 2 P-State 0.\n");
-	printf("    amdctl -v1350 -p1           Set CPU voltage to 1.35v for P-State 1 on all cores.\n");
-	printf("    amdctl -s3000 -v1300 -p1    Set CPU clock speed to 3ghz, cpu voltage to 1.3v for P-State on all cores.\n");
+	printf("    amdctl -v1350 -p1           Set CPU voltage to 1.35v for P-State 1 on all CPU cores.\n");
+	printf("    amdctl -s3000 -v1300 -p1    Set CPU clock speed to 3ghz, CPU voltage to 1.3v for P-State on all CPU cores.\n");
 	exit(EXIT_SUCCESS);
 }
 
