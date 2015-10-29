@@ -174,17 +174,17 @@ int main(int argc, char **argv) {
 				setReg(tmp_pstates[i], CPU_VID_BITS, mVToVid(cv));
 			}
 			printBaseFmt();
-			if (low > -1) {
-				setReg(PSTATE_CURRENT_LIMIT, PSTATE_MAX_VAL_BITS, low);
-			}
-			if (high > -1) {
-				setReg(PSTATE_CURRENT_LIMIT, CUR_PSTATE_LIMIT_BITS, high);
-			}
-			getReg(PSTATE_CURRENT_LIMIT);
-			puts("\tP-State Limits:\n");
-			printf("\t\tMin: %d\n", getDec(PSTATE_MAX_VAL_BITS));
-			printf("\t\tMax: %d\n", getDec(CUR_PSTATE_LIMIT_BITS));
 		}
+		if (low > -1) {
+			setReg(PSTATE_CURRENT_LIMIT, PSTATE_MAX_VAL_BITS, low);
+		}
+		if (high > -1) {
+			setReg(PSTATE_CURRENT_LIMIT, CUR_PSTATE_LIMIT_BITS, high);
+		}
+		getReg(PSTATE_CURRENT_LIMIT);
+		puts("\tP-State Limits:\n");
+		printf("\t\tMin: %d\n", getDec(PSTATE_MAX_VAL_BITS));
+		printf("\t\tMax: %d\n", getDec(CUR_PSTATE_LIMIT_BITS));
 	}
 
 	return EXIT_SUCCESS;
