@@ -70,16 +70,16 @@ static char *CPU_FID_BITS = "5:0";
 
 static int PSTATES = 8;
 static uint64_t buffer;
-static int cpuFamily, cpuModel, cores, pvi = 0;
+static int cpuFamily = 0, cpuModel = 0, cores = 0, pvi = 0;
 static int core = -1;
 static int pstate = -2;
-static int minMaxVid, testMode = 0;
+static int minMaxVid = 0, testMode = 0;
 
 int main(int argc, char **argv) {
 	getCpuInfo();
 	checkFamily();
 	
-	int low, high, nv, cv, type = 0;
+	int low = 0, high = 0, nv = 0, cv = 0, type = 0;
 	int c;
 	while ((c = getopt(argc, argv, "ghtc:l:m:n:p:v:")) != -1) {
 		switch (c) {
