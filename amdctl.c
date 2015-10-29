@@ -165,7 +165,8 @@ int main(int argc, char **argv) {
 
 	for (; core < cores; core++) {
 		printf("CPU Core %d\n", core);
-		for (int i = 0; i < pstates_count; i++){
+		int i;
+		for (i = 0; i < pstates_count; i++){
 			if (tmp_pstates[i] == COFVID_STATUS){
 				puts("P-State: Current");
 			} else {
