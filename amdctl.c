@@ -69,7 +69,7 @@ static char *CPU_FID_BITS = "5:0";
 
 static uint64_t buffer;
 static int PSTATES = 8, cpuFamily = 0, cpuModel = 0, cores = 0, pvi = 0, debug = 0,
-minMaxVid = 0, testMode = 0, core = -1, pstate = -2;
+minMaxVid = 0, testMode = 0, core = -1, pstate = -1;
 
 int main(int argc, char **argv) {
 	getCpuInfo();
@@ -113,7 +113,7 @@ int main(int argc, char **argv) {
 				break;
 			case 'p':
 				pstate = atoi(optarg);
-				if (pstate >= -1 && pstate < PSTATES) {
+				if (pstate > -1 && pstate < PSTATES) {
 					break;
 				} else {
 					error("Option -p must be -1 or less than total number of P-states (8 or 5 depending on CPU).");
@@ -133,7 +133,7 @@ int main(int argc, char **argv) {
 
 	printf("Voltage ID encodings: %s\n", (pvi ? "PVI (parallel)" : "SVI (serial)"));
 	printf("Detected cpu model %xh, from family %xh with %d cpu cores.\n", cpuModel, cpuFamily, cores);
-	if (nv || cv || low || high) {
+	if (nv || cv || low > -1 || high > -1) {
 		printf("%s\n", (testMode ? "Preview mode On - No P-state values will be changed" : "PREVIEW MODE OFF - P-STATES WILL BE CHANGED"));
 	}
 	
@@ -145,13 +145,10 @@ int main(int argc, char **argv) {
 
 	uint32_t tmp_pstates[PSTATES];
 	int pstates_count = 0;
-	if (pstate == -2) {
+	if (pstate == -1) {
 		for (; pstates_count < PSTATES; pstates_count++) {
 			tmp_pstates[pstates_count] = (PSTATE_BASE + pstates_count);
 		}
-		tmp_pstates[pstates_count] = COFVID_STATUS;
-	} else if (pstate == -1) {
-		tmp_pstates[0] = COFVID_STATUS;
 	} else {
 		tmp_pstates[0] = PSTATE_BASE - 1 + pstate;
 	}
@@ -161,11 +158,7 @@ int main(int argc, char **argv) {
 		printf("CPU Core %d\n", core);
 		int i;
 		for (i = 0; i < pstates_count; i++) {
-			if (tmp_pstates[i] == COFVID_STATUS) {
-				puts("\tP-State: Current");
-			} else {
-				printf("\tP-State: %d\n", (pstate >= 0 ? pstate : i));
-			}
+			printf("\tP-State: %d\n", (pstate >= 0 ? pstate : i));
 			getReg(tmp_pstates[i]);
 			if (nv > 0) {
 				setReg(tmp_pstates[i], NB_VID_BITS, mVToVid(nv));
@@ -175,6 +168,10 @@ int main(int argc, char **argv) {
 			}
 			printBaseFmt();
 		}
+		getReg(PSTATE_STATUS);
+		printf("\tCurrent P-State: %d\n", getDec(CUR_PSTATE_BITS));
+		getReg(COFVID_STATUS);
+		printBaseFmt();
 		if (low > -1) {
 			setReg(PSTATE_CURRENT_LIMIT, PSTATE_MAX_VAL_BITS, low);
 		}
@@ -257,7 +254,7 @@ void usage() {
 	printf("amdctl [options]\n");
 	printf("    -g    Get P-state information.\n");
 	printf("    -c    CPU core to work on. (all cores if not set)\n");
-	printf("    -p    P-state to work on. Pass -1 for current P-state info. (all P-states if not set)\n");
+	printf("    -p    P-state to work on. (all P-states if not set)\n");
 	printf("    -v    Set cpu voltage for P-state(millivolts, 1.4volts=1400 millivolts).\n");
 	printf("    -n    Set north bridge voltage (millivolts).\n");
 	printf("    -l    Set the lowest useable (non boosted) P-state (all cores if -c not set).\n");
