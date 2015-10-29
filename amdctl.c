@@ -146,7 +146,7 @@ void getCpuInfo() {
 	if (!cpuModel || !cpuFamily) {
 		error("Could not find CPU family or model!");
 	}
-	printf("Detected cpu model %x, from family %x\n", cpuModel, cpuFamily);
+	printf("Detected cpu model %xh, from family %xh\n", cpuModel, cpuFamily);
 }
 
 void usage() {
