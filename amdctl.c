@@ -130,7 +130,6 @@ void getCpuInfo() {
 	}
 
 	while(fgets(buff, 8192, fp)) {
-		printf("%s\n", buff);
 		if (strstr(buff, "vendor_id") != NULL && strstr(buff, "AMD") == NULL) {
 			error("Processor is not an AMD?");
 		} else if (strstr(buff, "cpu family") != NULL) {
@@ -147,7 +146,7 @@ void getCpuInfo() {
 	if (!cpuModel || !cpuFamily) {
 		error("Could not find CPU family or model!");
 	}
-	printf("Detect cpu model %x, from family %x\n", cpuModel, cpuFamily);
+	printf("Detected cpu model %x, from family %x\n", cpuModel, cpuFamily);
 }
 
 void usage() {
@@ -328,7 +327,7 @@ void getVidType() {
 
 	fh = open("/proc/bus/pci/00/18.3", O_RDONLY);
 	if (fh < 0) {
-		error("Unsupported CPU? Could not open /proc/bus/pci/00/18.3");
+		error("Unsupported CPU? Could not open /proc/bus/pci/00/18.3 ; Requires root permissions.");
 	}
 
 	if (read(fh, &buff, 256) != 256) {
