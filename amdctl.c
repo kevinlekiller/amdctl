@@ -42,20 +42,20 @@ void usage();
 #define COFVID_STATUS        0xc0010071
 
 #define AMD10H 0x10 // K10
-#define AMD11H 0x11 // puma
-#define AMD12H 0x12 // llanna/fusion
-#define AMD13H 0x13 // unknown
-#define AMD14H 0x14 // bobcat
-#define AMD15H 0x15 // bulldozer/piledriver/steamroller/excavator/etc
-#define AMD16H 0x16 // godvari/kaveri/kabini/jaguar/beema/etc
-#define AMD17H 0x17 // zen
+#define AMD11H 0x11 // Turion
+#define AMD12H 0x12 // Fusion
+#define AMD13H 0x13 // Unknown
+#define AMD14H 0x14 // Bobcat
+#define AMD15H 0x15 // Bulldozer
+#define AMD16H 0x16 // Jaguar
+#define AMD17H 0x17 // Zen
 
-#define PSTATE_MAX_VAL_BITS          "6:4"
-#define CUR_PSTATE_LIMIT_BITS        "2:0"
-#define CUR_PSTATE_BITS              "2:0"
-#define IDD_DIV_BITS                 "41:40"
-#define IDD_VALUE_BITS               "39:32"
-#define CPU_VID_BITS                 "15:9"
+#define PSTATE_MAX_VAL_BITS   "6:4"
+#define CUR_PSTATE_LIMIT_BITS "2:0"
+#define CUR_PSTATE_BITS       "2:0"
+#define IDD_DIV_BITS          "41:40"
+#define IDD_VALUE_BITS        "39:32"
+#define CPU_VID_BITS          "15:9"
 
 static char *NB_VID_BITS  = "31:25";
 static char *CPU_DID_BITS = "8:6";
@@ -68,7 +68,7 @@ minMaxVid = 0, testMode = 0, core = -1, pstate = -1, writeReg = 1;
 int main(int argc, char **argv) {
 	getCpuInfo();
 	checkFamily();
-	
+
 	int low = -1, high = -1, nv = 0, cv = 0, c, opts = 0, cpuSpeed = 0;
 	while ((c = getopt(argc, argv, "gdhtc:l:m:n:p:v:s:")) != -1) {
 		opts = 1;
@@ -140,7 +140,7 @@ int main(int argc, char **argv) {
 	if (nv || cv || low > -1 || high > -1) {
 		printf("%s\n", (testMode ? "Preview mode On - No P-State values will be changed." : "PREVIEW MODE OFF - P-STATES WILL BE CHANGED!"));
 	}
-	
+
 	if (core == -1) {
 		core = 0;
 	} else {
@@ -157,7 +157,7 @@ int main(int argc, char **argv) {
 		tmp_pstates[0] = PSTATE_BASE + pstate;
 		pstates_count = 1;
 	}
-	
+
 	int fndCpuDid, fndCpuFid;
 	if (cpuSpeed) {
 		int *fndCpuDidp = &fndCpuDid, *fndCpuFidp = &fndCpuFid;
@@ -208,7 +208,7 @@ void getCpuInfo() {
 	if (debug) { printf("DEBUG: Checking CPU info.\n"); }
 	FILE *fp;
 	char buff[8192];
-	
+
 	fp = fopen("/proc/cpuinfo", "r");
 	if (fp == NULL) {
 		error("Could not open /proc/cpuinfo for reading.");
@@ -228,7 +228,7 @@ void getCpuInfo() {
 			break;
 		}
 	}
-	
+
 	fclose(fp);
 	if (!cpuModel || !cpuFamily || !cores) {
 		error("Could not find CPU family or model!");
@@ -294,7 +294,7 @@ void usage() {
 	printf("    amdctl -g -c3 -p1           Displays P-State 1 info for CPU core 3.\n");
 	printf("    amdctl -v1400 -c2 -p0       Set CPU voltage to 1.4v on CPU core 2 P-State 0.\n");
 	printf("    amdctl -v1350 -p1           Set CPU voltage to 1.35v for P-State 1 on all CPU cores.\n");
-	printf("    amdctl -s3000 -v1300 -p1    Set CPU clock speed to 3ghz, CPU voltage to 1.3v for P-State on all CPU cores.\n");
+	printf("    amdctl -s3000 -v1300 -p1    Set CPU clock speed to 3ghz, CPU voltage to 1.3v for P-State 1 on all CPU cores.\n");
 	exit(EXIT_SUCCESS);
 }
 
@@ -313,7 +313,7 @@ void printBaseFmt(const int idd) {
 	printf("\t\tCPU voltgage            %.2fmV\n", cpuVolt);
 	printf("\t\tNorth Bridge voltage id %d\n", NbVid);
 	printf("\t\tNorth Bridge voltage    %.2fmV\n", vidTomV(NbVid));
-	
+
 	if (idd) {
 		int IddDiv = getDec(IDD_DIV_BITS);
 		printf("\t\tCore current divisor id %d\n", IddDiv);
