@@ -166,7 +166,11 @@ int main(int argc, char **argv) {
 
 	for (; core < cores; core++) {
 		printf("CPU Core %d\n", core);
-		int i;
+		getReg(PSTATE_CURRENT_LIMIT);
+		puts("\tP-State Limits:");
+		int i, minPstate = getDec(PSTATE_MAX_VAL_BITS) + 1;
+		printf("\t\tMin: %d\n", minPstate);
+		printf("\t\tMax: %d\n", getDec(CUR_PSTATE_LIMIT_BITS) + 1);
 		for (i = 0; i < pstates_count; i++) {
 			printf("\tP-State: %d\n", (pstate >= 0 ? pstate : i));
 			getReg(tmp_pstates[i]);
@@ -184,6 +188,9 @@ int main(int argc, char **argv) {
 			}
 			getReg(tmp_pstates[i]); // Refresh for IDD values.
 			printBaseFmt(1);
+			if (i >= minPstate) {
+				break;
+			}
 		}
 		getReg(PSTATE_STATUS);
 		printf("\tCurrent P-State: %d\n", getDec(CUR_PSTATE_BITS) + 1);
@@ -195,10 +202,6 @@ int main(int argc, char **argv) {
 		if (high > -1) {
 			setReg(PSTATE_CURRENT_LIMIT, CUR_PSTATE_LIMIT_BITS, high);
 		}
-		getReg(PSTATE_CURRENT_LIMIT);
-		puts("\tP-State Limits:");
-		printf("\t\tMin: %d\n", getDec(PSTATE_MAX_VAL_BITS) + 1);
-		printf("\t\tMax: %d\n", getDec(CUR_PSTATE_LIMIT_BITS) + 1);
 	}
 
 	return EXIT_SUCCESS;
@@ -399,7 +402,7 @@ int getDec(const char *loc) {
 		temp &= ~(1ULL << (temp - 1));
 		temp = -temp;
 	}
-	return (int)temp;
+	return abs(temp);
 }
 
 // Ported from k10ctl
