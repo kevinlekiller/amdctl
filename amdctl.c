@@ -30,6 +30,7 @@ void setReg(const uint32_t, const char *, int);
 void getVidType();
 float vidTomV(const int);
 int getCpuMultiplier(const int, const int);
+int getClockSpeed(const int, const int);
 int mVToVid(float);
 void calculateDidFid(int, int *, int *);
 void getCpuInfo();
@@ -308,13 +309,12 @@ void printBaseFmt(const int idd) {
 	const int CpuFid = getDec(CPU_FID_BITS);
 	const int NbVid  = getDec(NB_VID_BITS);
 	const float cpuVolt = vidTomV(CpuVid);
-	const int multiplier = getCpuMultiplier(CpuDid, CpuFid);
 
 	printf("\t\tCPU voltage id          %d\n", CpuVid);
 	printf("\t\tCPU divisor id          %d\n", CpuDid);
 	printf("\t\tCPU frequency id        %d\n", CpuFid);
-	printf("\t\tCPU multiplier          %dx\n", multiplier);
-	printf("\t\tCPU frequency           %dMHz\n", (100 * multiplier) * 2);
+	printf("\t\tCPU multiplier          %dx\n", getCpuMultiplier(CpuFid, CpuDid));
+	printf("\t\tCPU frequency           %dMHz\n", getClockSpeed(CpuFid, CpuDid));
 	printf("\t\tCPU voltgage            %.2fmV\n", cpuVolt);
 	printf("\t\tNorth Bridge voltage id %d\n", NbVid);
 	printf("\t\tNorth Bridge voltage    %.2fmV\n", vidTomV(NbVid));
@@ -360,16 +360,31 @@ void getReg(const uint32_t reg) {
 	close(fh);
 }
 
-int getCpuMultiplier(const int divisor, const int freqId) {
+int getCpuMultiplier(const int CpuFid, const int CpuDid) {
 	switch (cpuFamily) {
 		case AMD10H:
 		case AMD15H:
 		case AMD16H:
-			return ((freqId + 0x10) / (2 ^ divisor));
+			return ((CpuFid + 0x10) / (2 ^ CpuDid));
 		case AMD11H:
-			return ((freqId + 0x08) / (2 ^ divisor));
+			return ((CpuFid + 0x08) / (2 ^ CpuDid));
 		case AMD12H:
-			return ((freqId + 0x10) / divisor);
+			return ((CpuFid + 0x10) / CpuDid);
+		default:
+			return 0;
+	}
+}
+
+int getClockSpeed(const int CpuFid, const int CpuDid) {
+	switch (cpuFamily) {
+		case AMD10H:
+		case AMD15H:
+		case AMD16H:
+			return ((100 * (CpuFid + 0x10)) >> CpuDid);
+		case AMD11H:
+			return ((100 * (CpuFid + 0x08)) / (2 ^ CpuDid));
+		case AMD12H:
+			return (100 * (CpuFid + 0x10) / CpuDid);
 		default:
 			return 0;
 	}
@@ -473,7 +488,7 @@ void calculateDidFid(int mhz, int *retDid, int *retFid) {
 		foundDid = 0x4;
 	}
 	for (i = 0; i <= 0x2f; i++) {
-		tmp_mhz = ((100 * (i + 0x10)) >> foundDid);
+		tmp_mhz = getClockSpeed(i, foundDid);
 		if (tmp_mhz >= mhz) {
 			break;
 		}
