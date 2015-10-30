@@ -226,8 +226,8 @@ void getCpuInfo() {
 			sscanf(buff, "%*s %*s : %d", &cpuFamily);
 		} else if (strstr(buff, "model") != NULL) {
 			sscanf(buff, "%*s : %d", &cpuModel);
-		} else if (strstr(buff, "cpu cores") != NULL) {
-			sscanf(buff, "%*s %*s : %d", &cores);
+		} else if (strstr(buff, "siblings") != NULL) {
+			sscanf(buff, "%*s : %d", &cores);
 		}
 		if (cpuFamily && cpuModel && cores) {
 			break;
