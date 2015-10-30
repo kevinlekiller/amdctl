@@ -169,8 +169,8 @@ int main(int argc, char **argv) {
 		getReg(PSTATE_CURRENT_LIMIT);
 		puts("\tP-State Limits (non-turbo):");
 		int i, minPstate = getDec(PSTATE_MAX_VAL_BITS) + 1;
-		printf("\t\tMin: %d\n", minPstate);
-		printf("\t\tMax: %d\n", getDec(CUR_PSTATE_LIMIT_BITS) + 1);
+		printf("\t\tHighest                 %d\n", getDec(CUR_PSTATE_LIMIT_BITS) + 1);
+		printf("\t\tLowest                  %d\n", minPstate);
 		for (i = 0; i < pstates_count; i++) {
 			printf("\tP-State: %d\n", (pstate >= 0 ? pstate : i));
 			getReg(tmp_pstates[i]);
