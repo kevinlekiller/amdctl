@@ -23,12 +23,13 @@
 #include <string.h>
 #include <getopt.h>
 
-void printBaseFmt(const int idd);
+void printBaseFmt(const int);
 int getDec(const char *);
 void getReg(const uint32_t);
 void setReg(const uint32_t, const char *, int);
 void getVidType();
 float vidTomV(const int);
+int getCpuDivisor(const int);
 int mVToVid(float);
 void calculateDidFid(int, int *, int *);
 void getCpuInfo();
@@ -303,7 +304,7 @@ void usage() {
 
 void printBaseFmt(const int idd) {
 	const int CpuVid = getDec(CPU_VID_BITS);
-	const int CpuDid = getDec(CPU_DID_BITS);
+	int CpuDid = getDec(CPU_DID_BITS);
 	const int CpuFid = getDec(CPU_FID_BITS);
 	const int NbVid  = getDec(NB_VID_BITS);
 	const float cpuVolt = vidTomV(CpuVid);
@@ -311,6 +312,7 @@ void printBaseFmt(const int idd) {
 	printf("\t\tCPU voltage id          %d\n", CpuVid);
 	printf("\t\tCPU divisor id          %d\n", CpuDid);
 	printf("\t\tCPU frequency id        %d\n", CpuFid);
+	CpuDid = getCpuDivisor(CpuDid);
 	printf("\t\tCPU multiplier          %dx\n", ((CpuFid + 0x10) / (2 ^ CpuDid)));
 	printf("\t\tCPU frequency           %dMHz\n", ((100 * (CpuFid + 0x10)) >> CpuDid));
 	printf("\t\tCPU voltgage            %.2fmV\n", cpuVolt);
@@ -403,6 +405,44 @@ int getDec(const char *loc) {
 		temp = -temp;
 	}
 	return abs(temp);
+}
+
+int getCpuDivisor(const int divisor) {
+	switch(cpuFamily) {
+		case AMD10H:
+		case AMD15H:
+		case AMD16H:
+			switch(divisor) {
+				case 0x0: return 1;
+				case 0x1: return 2;
+				case 0x2: return 4;
+				case 0x3: return 8;
+				case 0x4: return 16;
+				default:  return 0;
+			}
+		case AMD11H:
+			switch(divisor) {
+				case 0x0: return 1;
+				case 0x1: return 2;
+				case 0x2: return 4;
+				case 0x3: return 8;
+				default:  return 0;
+			}
+		case AMD12H:
+			switch(divisor) {
+				case 0b0000:  return 1;
+				case 0b0001:  return 1.5;
+				case 0b0010:  return 2;
+				case 0b0011:  return 3;
+				case 0b0100:  return 4;
+				case 0b0101:  return 6;
+				case 0b0110:  return 8;
+				case 0b0111:  return 12;
+				case 0b1000:  return 16;
+				default: return 0;
+			}
+	}
+	return 0;
 }
 
 // Ported from k10ctl
