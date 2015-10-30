@@ -167,7 +167,7 @@ int main(int argc, char **argv) {
 	for (; core < cores; core++) {
 		printf("CPU Core %d\n", core);
 		getReg(PSTATE_CURRENT_LIMIT);
-		puts("\tP-State Limits:");
+		puts("\tP-State Limits (non-turbo):");
 		int i, minPstate = getDec(PSTATE_MAX_VAL_BITS) + 1;
 		printf("\t\tMin: %d\n", minPstate);
 		printf("\t\tMax: %d\n", getDec(CUR_PSTATE_LIMIT_BITS) + 1);
