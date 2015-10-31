@@ -415,9 +415,11 @@ void setReg(const uint32_t reg, const char *loc, uint64_t replacement) {
 		low = high;
 		high = temp;
 	}
+
 	getReg(reg);
-	buffer &= ~((1 << low) | (1 << high));
-	buffer = ((buffer & (~(high << low))) | (replacement << low));
+	if (replacement > 0 && replacement < (2 << (high - low))) {
+		buffer = (buffer & ((1 << low) - (2 << high) - 1)) | (replacement << low);
+	}
 
 	if (!testMode && writeReg) {
 		sprintf(path, "/dev/cpu/%d/msr", core);
