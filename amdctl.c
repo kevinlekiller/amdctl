@@ -71,7 +71,7 @@ int main(int argc, char **argv) {
 	checkFamily();
 
 	int low = -1, high = -1, nv = 0, cv = 0, c, opts = 0, did = -1, fid = -1;
-	while ((c = getopt(argc, argv, "gihtc:l:m:n:p:v:d:")) != -1) {
+	while ((c = getopt(argc, argv, "gihtc:l:m:n:p:v:d:f:")) != -1) {
 		opts = 1;
 		switch (c) {
 			case 'g':
