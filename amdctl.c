@@ -32,7 +32,6 @@ float vidTomV(const int);
 int getCpuMultiplier(const int, const int);
 int getClockSpeed(const int, const int);
 int mVToVid(float);
-void calculateDidFid(int, int *, int *);
 void getCpuInfo();
 void checkFamily();
 void error(const char *);
@@ -64,15 +63,15 @@ static char *CPU_DID_BITS = "8:6";
 static char *CPU_FID_BITS = "5:0";
 
 static uint64_t buffer;
-static int PSTATES = 8, cpuFamily = 0, cpuModel = 0, cores = 0, pvi = 0, debug = 0,
+static int PSTATES = 8, DIDS = 5, cpuFamily = 0, cpuModel = 0, cores = 0, pvi = 0, debug = 0,
 minMaxVid = 0, testMode = 0, core = -1, pstate = -1, writeReg = 1;
 
 int main(int argc, char **argv) {
 	getCpuInfo();
 	checkFamily();
 
-	int low = -1, high = -1, nv = 0, cv = 0, c, opts = 0, cpuSpeed = 0;
-	while ((c = getopt(argc, argv, "gdhtc:l:m:n:p:v:s:")) != -1) {
+	int low = -1, high = -1, nv = 0, cv = 0, c, opts = 0, did = -1, fid = -1;
+	while ((c = getopt(argc, argv, "gihtc:l:m:n:p:v:d:")) != -1) {
 		opts = 1;
 		switch (c) {
 			case 'g':
@@ -80,7 +79,7 @@ int main(int argc, char **argv) {
 			case 't':
 				testMode = 1;
 				break;
-			case 'd':
+			case 'i':
 				debug = 1;
 				break;
 			case 'c':
@@ -89,6 +88,17 @@ int main(int argc, char **argv) {
 					error("Option -c must be lower or equal to total number of CPU cores.");
 				}
 				break;
+			case 'd':
+				did = atoi(optarg);
+				if (did > DIDS || did < 0) {
+					fprintf(stderr, "ERROR: Option -d must be a number 0 to %d\n", DIDS);
+					exit(EXIT_FAILURE);
+				}
+			case 'f':
+				fid = atoi(optarg);
+				if (fid > 0x2f || fid < 0) {
+					error("Option -f must be a number 0 to 47");
+				}
 			case 'l':
 				low = atoi(optarg);
 				if (low < 0 || low >= PSTATES) {
@@ -114,12 +124,6 @@ int main(int argc, char **argv) {
 				} else {
 					error("Option -p must be less than total number of P-States (8 or 5 depending on CPU).");
 				}
-			case 's':
-				cpuSpeed = atoi(optarg);
-				if (cpuSpeed < 100 || cpuSpeed > 6300) {
-					error("Option -s must be between 100 and 6300.");
-				}
-				break;
 			case 'v':
 				cv = atoi(optarg);
 				if (cv < 1 || cv > 1550) {
@@ -160,12 +164,6 @@ int main(int argc, char **argv) {
 		pstates_count = 1;
 	}
 
-	int fndCpuDid, fndCpuFid;
-	if (cpuSpeed) {
-		int *fndCpuDidp = &fndCpuDid, *fndCpuFidp = &fndCpuFid;
-		calculateDidFid(cpuSpeed, fndCpuDidp, fndCpuFidp);
-	}
-
 	for (; core < cores; core++) {
 		printf("CPU Core %d\n", core);
 		getReg(PSTATE_CURRENT_LIMIT);
@@ -188,11 +186,11 @@ int main(int argc, char **argv) {
 			if (cv > 0) {
 				setReg(tmp_pstates[i], CPU_VID_BITS, mVToVid(cv));
 			}
-			if (cpuSpeed) {
-				writeReg = 0;
-				setReg(tmp_pstates[i], CPU_DID_BITS, fndCpuDid);
-				writeReg = 1;
-				setReg(tmp_pstates[i], CPU_FID_BITS, fndCpuFid);
+			if (fid > -1) {
+				setReg(tmp_pstates[i], CPU_FID_BITS, fid);
+			}
+			if (did > -1) {
+				setReg(tmp_pstates[i], CPU_DID_BITS, did);
 			}
 			if (!testMode) {
 				getReg(tmp_pstates[i]); // Refresh for IDD values.
@@ -249,11 +247,13 @@ void checkFamily() {
 			getVidType();
 			PSTATES = 5;
 			break;
+		case AMD11H:
+			DIDS = 4;
+			break;
 		case AMD12H:
+			DIDS = 8;
 			CPU_DID_BITS = "8:4";
 			CPU_FID_BITS = "3:0";
-			break;
-		case AMD11H:
 			break;
 		case AMD15H:
 			if (cpuModel > 0x0f) {
@@ -289,7 +289,9 @@ void usage() {
 	printf("    -m    Set the highest useable (non turbo) P-State for the CPU core(s).\n");
 	printf("    -t    Preview changes without applying them to the CPU.\n");
 	printf("    -s    Set the CPU frequency speed in MHz.\n");
-	printf("    -d    Show debug info.\n");
+	printf("    -d    Set the CPU divisor id (did).\n");
+	printf("    -f    Set the CPU frequency id (fid).\n");
+	printf("    -i    Show debug info.\n");
 	printf("    -h    Shows this information.\n");
 	printf("Notes:\n");
 	printf("    1 volt = 1000 millivolts.\n");
@@ -474,30 +476,6 @@ int mVToVid(float mV) {
 		}
 	}
 	return 0;
-}
-
-void calculateDidFid(int mhz, int *retDid, int *retFid) {
-	int foundDid,i, tmp_mhz = 0;
-	if (mhz >= 1600) {
-		foundDid = 0x0;
-	} else if (mhz >= 800) {
-		foundDid = 0x1;
-	} else if (mhz >= 400) {
-		foundDid = 0x2;
-	} else if (mhz >= 200) {
-		foundDid = 0x3;
-	} else {
-		foundDid = 0x4;
-	}
-	for (i = 0; i <= 0x2f; i++) {
-		tmp_mhz = getClockSpeed(i, foundDid);
-		if (tmp_mhz >= mhz) {
-			break;
-		}
-	}
-	if (debug) { printf("Found did %d, fid %d (%dMHz) for wanted %dMHz\n", foundDid, i, tmp_mhz, mhz); }
-	*retFid = i;
-	*retDid = foundDid;
 }
 
 // Ported from k10ctl
