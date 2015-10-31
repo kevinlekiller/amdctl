@@ -169,6 +169,12 @@ int main(int argc, char **argv) {
 	for (; core < cores; core++) {
 		printf("CPU Core %d\n", core);
 		getReg(PSTATE_CURRENT_LIMIT);
+		if (low > -1) {
+			setReg(PSTATE_CURRENT_LIMIT, PSTATE_MAX_VAL_BITS, low);
+		}
+		if (high > -1) {
+			setReg(PSTATE_CURRENT_LIMIT, CUR_PSTATE_LIMIT_BITS, high);
+		}
 		puts("\tP-State Limits (non-turbo):");
 		int i, minPstate = getDec(PSTATE_MAX_VAL_BITS) + 1;
 		printf("\t\tHighest                 %d\n", getDec(CUR_PSTATE_LIMIT_BITS) + 1);
@@ -188,7 +194,9 @@ int main(int argc, char **argv) {
 				writeReg = 1;
 				setReg(tmp_pstates[i], CPU_FID_BITS, fndCpuFid);
 			}
-			getReg(tmp_pstates[i]); // Refresh for IDD values.
+			if (!testMode) {
+				getReg(tmp_pstates[i]); // Refresh for IDD values.
+			}
 			printBaseFmt(1);
 			if (i >= minPstate) {
 				break;
@@ -198,12 +206,6 @@ int main(int argc, char **argv) {
 		printf("\tCurrent P-State: %d\n", getDec(CUR_PSTATE_BITS) + 1);
 		getReg(COFVID_STATUS);
 		printBaseFmt(0);
-		if (low > -1) {
-			setReg(PSTATE_CURRENT_LIMIT, PSTATE_MAX_VAL_BITS, low);
-		}
-		if (high > -1) {
-			setReg(PSTATE_CURRENT_LIMIT, CUR_PSTATE_LIMIT_BITS, high);
-		}
 	}
 
 	return EXIT_SUCCESS;
