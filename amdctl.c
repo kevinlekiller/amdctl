@@ -303,7 +303,6 @@ void usage() {
 	printf("    amdctl -g -c3 -p1           Displays P-State 1 info for CPU core 3.\n");
 	printf("    amdctl -v1400 -c2 -p0       Set CPU voltage to 1.4v on CPU core 2 P-State 0.\n");
 	printf("    amdctl -v1350 -p1           Set CPU voltage to 1.35v for P-State 1 on all CPU cores.\n");
-	printf("    amdctl -s3000 -v1300 -p1    Set CPU clock speed to 3ghz, CPU voltage to 1.3v for P-State 1 on all CPU cores.\n");
 	exit(EXIT_SUCCESS);
 }
 
