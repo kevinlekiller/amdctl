@@ -70,8 +70,8 @@ int main(int argc, char **argv) {
 	getCpuInfo();
 	checkFamily();
 
-	int low = -1, high = -1, nv = 0, cv = 0, c, opts = 0, did = -1, fid = -1;
-	while ((c = getopt(argc, argv, "ghitc:d:f:l:m:n:p:v:")) != -1) {
+	int low = -1, high = -1, nv = -1, cv = -1, c, opts = 0, did = -1, fid = -1, currentOnly = 0, uVolt;
+	while ((c = getopt(argc, argv, "eghitc:d:f:l:m:n:p:u:v:")) != -1) {
 		opts = 1;
 		switch (c) {
 			case 'c':
@@ -107,8 +107,8 @@ int main(int argc, char **argv) {
 				break;
 			case 'n':
 				nv = atoi(optarg);
-				if (nv < 1 || nv > 1550) {
-					error("Option -n must be between 1 and 1550.");
+				if (nv < 0 || nv > 124) {
+					error("Option -n must be between 0 and 124.");
 				}
 				break;
 			case 'p':
@@ -118,11 +118,21 @@ int main(int argc, char **argv) {
 				} else {
 					error("Option -p must be less than total number of P-States (8 or 5 depending on CPU).");
 				}
+			case 'u':
+				uVolt = atoi(optarg);
+				if (uVolt < 1 || uVolt > 1550) {
+					error("Option -n must be between 1 and 1550.");
+				}
+				printf("Found vid %d for for voltage %d, use this with caution.\n", mVToVid(uVolt), uVolt);
+				exit(EXIT_SUCCESS);
 			case 'v':
 				cv = atoi(optarg);
-				if (cv < 1 || cv > 1550) {
+				if (cv < 0 || cv > 124) {
 					error("Option -v must be between 1 and 1550.");
 				}
+				break;
+			case 'e':
+				currentOnly = 1;
 				break;
 			case 'g':
 				break;
@@ -145,7 +155,7 @@ int main(int argc, char **argv) {
 
 	printf("Voltage ID encodings: %s\n", (pvi ? "PVI (parallel)" : "SVI (serial)"));
 	printf("Detected CPU model %xh, from family %xh with %d CPU cores.\n", cpuModel, cpuFamily, cores);
-	if (nv || cv || low > -1 || high > -1) {
+	if (nv > -1 || cv > -1 || low > -1 || high > -1 || fid > -1 || did > -1) {
 		printf("%s\n", (testMode ? "Preview mode On - No P-State values will be changed." : "PREVIEW MODE OFF - P-STATES WILL BE CHANGED!"));
 	}
 
@@ -179,27 +189,29 @@ int main(int argc, char **argv) {
 		int i, minPstate = getDec(PSTATE_MAX_VAL_BITS) + 1;
 		printf("\t\tHighest                 %d\n", getDec(CUR_PSTATE_LIMIT_BITS) + 1);
 		printf("\t\tLowest                  %d\n", minPstate);
-		for (i = 0; i < pstates_count; i++) {
-			printf("\tP-State: %d\n", (pstate >= 0 ? pstate : i));
-			getReg(tmp_pstates[i]);
-			if (nv > 0) {
-				setReg(tmp_pstates[i], NB_VID_BITS, mVToVid(nv));
-			}
-			if (cv > 0) {
-				setReg(tmp_pstates[i], CPU_VID_BITS, mVToVid(cv));
-			}
-			if (fid > -1) {
-				setReg(tmp_pstates[i], CPU_FID_BITS, fid);
-			}
-			if (did > -1) {
-				setReg(tmp_pstates[i], CPU_DID_BITS, did);
-			}
-			if (!testMode) {
-				getReg(tmp_pstates[i]); // Refresh for IDD values.
-			}
-			printBaseFmt(1);
-			if (i >= minPstate) {
-				break;
+		if (!currentOnly) {
+			for (i = 0; i < pstates_count; i++) {
+				printf("\tP-State: %d\n", (pstate >= 0 ? pstate : i));
+				getReg(tmp_pstates[i]);
+				if (nv > -1) {
+					setReg(tmp_pstates[i], NB_VID_BITS, nv);
+				}
+				if (cv > -1) {
+					setReg(tmp_pstates[i], CPU_VID_BITS, cv);
+				}
+				if (fid > -1) {
+					setReg(tmp_pstates[i], CPU_FID_BITS, fid);
+				}
+				if (did > -1) {
+					setReg(tmp_pstates[i], CPU_DID_BITS, did);
+				}
+				if (!testMode) {
+					getReg(tmp_pstates[i]); // Refresh for IDD values.
+				}
+				printBaseFmt(1);
+				if (i >= minPstate) {
+					break;
+				}
 			}
 		}
 		getReg(PSTATE_STATUS);
@@ -285,14 +297,16 @@ void usage() {
 	printf("    -g    Get P-State information.\n");
 	printf("    -c    CPU core to work on.\n");
 	printf("    -p    P-state to work on.\n");
-	printf("    -v    Set CPU voltage for P-state (millivolts).\n");
-	printf("    -n    Set north bridge voltage (millivolts).\n");
+	printf("    -v    Set CPU voltage id (vid).\n");
+	printf("    -n    Set north bridge voltage id (vid).\n");
 	printf("    -l    Set the lowest useable (non turbo) P-State for the CPU core(s).\n");
 	printf("    -m    Set the highest useable (non turbo) P-State for the CPU core(s).\n");
-	printf("    -t    Preview changes without applying them to the CPU.\n");
 	printf("    -s    Set the CPU frequency speed in MHz.\n");
 	printf("    -d    Set the CPU divisor id (did).\n");
 	printf("    -f    Set the CPU frequency id (fid).\n");
+	printf("    -e    Show current P-State only.\n");
+	printf("    -t    Preview changes without applying them to the CPU.\n");
+	printf("    -u    Try to find voltage id by voltage (millivolts).\n");
 	printf("    -i    Show debug info.\n");
 	printf("    -h    Shows this information.\n");
 	printf("Notes:\n");
