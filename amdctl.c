@@ -178,13 +178,13 @@ int main(int argc, char **argv) {
 
 	for (; core < cores; core++) {
 		printf("CPU Core %d\n", core);
-		getReg(PSTATE_CURRENT_LIMIT);
 		if (low > -1) {
 			setReg(PSTATE_CURRENT_LIMIT, PSTATE_MAX_VAL_BITS, low);
 		}
 		if (high > -1) {
 			setReg(PSTATE_CURRENT_LIMIT, CUR_PSTATE_LIMIT_BITS, high);
 		}
+		getReg(PSTATE_CURRENT_LIMIT);
 		puts("\tP-State Limits (non-turbo):");
 		int i, minPstate = getDec(PSTATE_MAX_VAL_BITS) + 1;
 		printf("\t\tHighest                 %d\n", getDec(CUR_PSTATE_LIMIT_BITS) + 1);
@@ -192,7 +192,6 @@ int main(int argc, char **argv) {
 		if (!currentOnly) {
 			for (i = 0; i < pstates_count; i++) {
 				printf("\tP-State: %d\n", (pstate >= 0 ? pstate : i));
-				getReg(tmp_pstates[i]);
 				if (nv > -1) {
 					setReg(tmp_pstates[i], NB_VID_BITS, nv);
 				}
@@ -205,9 +204,7 @@ int main(int argc, char **argv) {
 				if (did > -1) {
 					setReg(tmp_pstates[i], CPU_DID_BITS, did);
 				}
-				if (!testMode) {
-					getReg(tmp_pstates[i]); // Refresh for IDD values.
-				}
+				getReg(tmp_pstates[i]);
 				printBaseFmt(1);
 				if (i >= minPstate) {
 					break;
@@ -420,7 +417,7 @@ void setReg(const uint32_t reg, const char *loc, int replacement) {
 		low = high;
 		high = temp;
 	}
-
+	buffer = getReg(reg);
 	buffer = ((buffer & (~(high << low))) | (replacement << low));
 
 	if (!testMode && writeReg) {
