@@ -417,7 +417,6 @@ void setReg(const uint32_t reg, const char *loc, uint64_t replacement) {
 		high = temp;
 	}
 	getReg(reg);
-	buffer &=((0 << low) | (0 << high));
 	buffer = ((buffer & (~(high << low))) | (replacement << low));
 
 	if (!testMode && writeReg) {
