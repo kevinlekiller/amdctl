@@ -128,7 +128,7 @@ int main(int argc, char **argv) {
 			case 'v':
 				cv = atoi(optarg);
 				if (cv < 0 || cv > 124) {
-					error("Option -v must be between 1 and 1550.");
+					error("Option -v must be between 0 and 124.");
 				}
 				break;
 			case 'e':
@@ -314,8 +314,6 @@ void usage() {
 	printf("    amdctl                      Shows this infortmation.\n");
 	printf("    amdctl -g -c0               Displays all P-State info for CPU core 0.\n");
 	printf("    amdctl -g -c3 -p1           Displays P-State 1 info for CPU core 3.\n");
-	printf("    amdctl -v1400 -c2 -p0       Set CPU voltage to 1.4v on CPU core 2 P-State 0.\n");
-	printf("    amdctl -v1350 -p1           Set CPU voltage to 1.35v for P-State 1 on all CPU cores.\n");
 	exit(EXIT_SUCCESS);
 }
 
@@ -419,6 +417,7 @@ void setReg(const uint32_t reg, const char *loc, uint64_t replacement) {
 		high = temp;
 	}
 	getReg(reg);
+	buffer &=((0 << low) | (0 << high));
 	buffer = ((buffer & (~(high << low))) | (replacement << low));
 
 	if (!testMode && writeReg) {
