@@ -58,6 +58,14 @@ void usage();
 #define IDD_VALUE_BITS        "39:32"
 #define CPU_VID_BITS          "15:9"
 
+#define MAX_VOLTAGE  1550
+#define MID_VOLTAGE  1162.5
+#define MAX_VID      124
+#define MID_VID      63
+#define MIN_VID      32
+#define VID_DIVIDOR1 25
+#define VID_DIVIDOR2 12.5
+
 static char *NB_VID_BITS  = "31:25";
 static char *CPU_DID_BITS = "8:6";
 static char *CPU_FID_BITS = "5:0";
@@ -457,26 +465,26 @@ int getDec(const char *loc) {
 // Ported from k10ctl
 float vidTomV(const int vid) {
 	if (pvi) {
-		if (vid < 32) {
-			return (1550 - vid * 25);
+		if (vid < MIN_VID) {
+			return (MAX_VOLTAGE - vid * VID_DIVIDOR1);
 		}
-		return (1162.5 - (vid > 63 ? 63 : vid) * 12.5);
+		return (MID_VOLTAGE - (vid > MID_VID ? MID_VID : vid) * VID_DIVIDOR2);
 	}
-	return (1550 - (vid > 124 ? 124 : vid) * 12.5);
+	return (MAX_VOLTAGE - (vid > MAX_VID ? MAX_VID : vid) * VID_DIVIDOR2);
 }
 
 int mVToVid(float mV) {
-	int maxVid = 124;
+	int maxVid = MAX_VID;
 	int i;
 	float tmpv;
-	float volt = 1550;
-	float mult = 12.5;
+	float volt = MAX_VOLTAGE;
+	float mult = VID_DIVIDOR2;
 	if (pvi) {
-		if (mV > 1162.5) {
-			mult = 25;
+		if (mV > MID_VOLTAGE) {
+			mult = VID_DIVIDOR1;
 		} else {
-			maxVid = 63;
-			volt = 1162.5;
+			maxVid = MID_VID;
+			volt = MID_VOLTAGE;
 		}
 	}
 	float min = (mV - (mult / 2));
