@@ -26,7 +26,7 @@
 void printBaseFmt(const int);
 int getDec(const char *);
 void getReg(const uint32_t);
-void setReg(const uint32_t, const char *, int);
+void setReg(const uint32_t, const char *, uint64_t);
 void getVidType();
 float vidTomV(const int);
 int getCpuMultiplier(const int, const int);
@@ -406,14 +406,15 @@ int getClockSpeed(const int CpuFid, const int CpuDid) {
 	}
 }
 
-void setReg(const uint32_t reg, const char *loc, int replacement) {
-	if (debug) { printf("DEBUG: Setting data %d at register %x, location %s for CPU %d\n", replacement, reg, loc, core); }
-	int low, high, fh;
+void setReg(const uint32_t reg, const char *loc, uint64_t replacement) {
+	if (debug) { printf("DEBUG: Setting data %lu at register %x, location %s for CPU %d\n", replacement, reg, loc, core); }
+	int fh;
 	char path[32];
+	uint64_t low, high;
 
-	sscanf(loc, "%d:%d", &high, &low);
+	sscanf(loc, "%lu:%lu", &high, &low);
 	if (low > high) {
-		int temp = low;
+		uint64_t temp = low;
 		low = high;
 		high = temp;
 	}
