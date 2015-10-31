@@ -298,7 +298,6 @@ void usage() {
 	printf("    -n    Set north bridge voltage id (vid).\n");
 	printf("    -l    Set the lowest useable (non turbo) P-State for the CPU core(s).\n");
 	printf("    -m    Set the highest useable (non turbo) P-State for the CPU core(s).\n");
-	printf("    -s    Set the CPU frequency id (fid).\n");
 	printf("    -d    Set the CPU divisor id (did).\n");
 	printf("    -f    Set the CPU frequency id (fid).\n");
 	printf("    -e    Show current P-State only.\n");
