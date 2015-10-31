@@ -71,17 +71,9 @@ int main(int argc, char **argv) {
 	checkFamily();
 
 	int low = -1, high = -1, nv = 0, cv = 0, c, opts = 0, did = -1, fid = -1;
-	while ((c = getopt(argc, argv, "gihtc:l:m:n:p:v:d:f:")) != -1) {
+	while ((c = getopt(argc, argv, "ghitc:d:f:l:m:n:p:v:")) != -1) {
 		opts = 1;
 		switch (c) {
-			case 'g':
-				break;
-			case 't':
-				testMode = 1;
-				break;
-			case 'i':
-				debug = 1;
-				break;
 			case 'c':
 				core = atoi(optarg);
 				if (core > cores || core < 0) {
@@ -94,11 +86,13 @@ int main(int argc, char **argv) {
 					fprintf(stderr, "ERROR: Option -d must be a number 0 to %d\n", DIDS);
 					exit(EXIT_FAILURE);
 				}
+				break;
 			case 'f':
 				fid = atoi(optarg);
 				if (fid > 0x2f || fid < 0) {
 					error("Option -f must be a number 0 to 47");
 				}
+				break;
 			case 'l':
 				low = atoi(optarg);
 				if (low < 0 || low >= PSTATES) {
@@ -129,6 +123,14 @@ int main(int argc, char **argv) {
 				if (cv < 1 || cv > 1550) {
 					error("Option -v must be between 1 and 1550.");
 				}
+				break;
+			case 'g':
+				break;
+			case 'i':
+				debug = 1;
+				break;
+			case 't':
+				testMode = 1;
 				break;
 			case '?':
 			case 'h':
