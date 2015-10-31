@@ -26,7 +26,7 @@
 void printBaseFmt(const int);
 int getDec(const char *);
 void getReg(const uint32_t);
-void setReg(const uint32_t, const char *, int);
+void setReg(const uint32_t, const char *, uint64_t);
 void getVidType();
 float vidTomV(const int);
 int getCpuMultiplier(const int, const int);
@@ -128,7 +128,7 @@ int main(int argc, char **argv) {
 			case 'v':
 				cv = atoi(optarg);
 				if (cv < 0 || cv > 124) {
-					error("Option -v must be between 1 and 1550.");
+					error("Option -v must be between 0 and 124.");
 				}
 				break;
 			case 'e':
@@ -314,8 +314,6 @@ void usage() {
 	printf("    amdctl                      Shows this infortmation.\n");
 	printf("    amdctl -g -c0               Displays all P-State info for CPU core 0.\n");
 	printf("    amdctl -g -c3 -p1           Displays P-State 1 info for CPU core 3.\n");
-	printf("    amdctl -v1400 -c2 -p0       Set CPU voltage to 1.4v on CPU core 2 P-State 0.\n");
-	printf("    amdctl -v1350 -p1           Set CPU voltage to 1.35v for P-State 1 on all CPU cores.\n");
 	exit(EXIT_SUCCESS);
 }
 
@@ -406,18 +404,20 @@ int getClockSpeed(const int CpuFid, const int CpuDid) {
 	}
 }
 
-void setReg(const uint32_t reg, const char *loc, int replacement) {
-	if (debug) { printf("DEBUG: Setting data %d at register %x, location %s for CPU %d\n", replacement, reg, loc, core); }
-	int low, high, fh;
+void setReg(const uint32_t reg, const char *loc, uint64_t replacement) {
+	if (debug) { printf("DEBUG: Setting data %lu at register %x, location %s for CPU %d\n", replacement, reg, loc, core); }
+	int fh;
 	char path[32];
+	uint64_t low, high;
 
-	sscanf(loc, "%d:%d", &high, &low);
+	sscanf(loc, "%lu:%lu", &high, &low);
 	if (low > high) {
-		int temp = low;
+		uint64_t temp = low;
 		low = high;
 		high = temp;
 	}
 	getReg(reg);
+	buffer &=((0 << low) | (0 << high));
 	buffer = ((buffer & (~(high << low))) | (replacement << low));
 
 	if (!testMode && writeReg) {
