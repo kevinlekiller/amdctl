@@ -131,7 +131,7 @@ int main(int argc, char **argv) {
 				if (uVolt < 1 || uVolt > 1550) {
 					error("Option -n must be between 1 and 1550.");
 				}
-				printf("Found vid %d for for voltage %d, use this with caution.\n", mVToVid(uVolt), uVolt);
+				printf("Found vid %d for for %dmV.\n", mVToVid(uVolt), uVolt);
 				exit(EXIT_SUCCESS);
 			case 'v':
 				cv = atoi(optarg);
@@ -427,6 +427,8 @@ void setReg(const uint32_t reg, const char *loc, uint64_t replacement) {
 	getReg(reg);
 	if (replacement > 0 && replacement < (2 << (high - low))) {
 		buffer = (buffer & ((1 << low) - (2 << high) - 1)) | (replacement << low);
+	} else {
+		return;
 	}
 
 	if (!testMode && writeReg) {
