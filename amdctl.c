@@ -74,14 +74,14 @@ static char *CPU_FID_BITS = "5:0";
 
 static uint64_t buffer;
 static int PSTATES = 8, DIDS = 5, cpuFamily = 0, cpuModel = 0, cores = 0,
-		pvi = 0, debug = 0, testMode = 0, core = -1, pstate = -1;
+		pvi = 0, debug = 0, quiet = 0, testMode = 0, core = -1, pstate = -1;
 
 int main(int argc, char **argv) {
 	getCpuInfo();
 	checkFamily();
 
 	int nv = -1, cv = -1, c, opts = 0, did = -1, fid = -1, currentOnly = 0, togglePs = -1, uVolt;
-	while ((c = getopt(argc, argv, "eghitxa:c:d:f:l:m:n:p:u:v:")) != -1) {
+	while ((c = getopt(argc, argv, "eghistxa:c:d:f:l:m:n:p:u:v:")) != -1) {
 		opts = 1;
 		switch (c) {
 			case 'a':
@@ -99,7 +99,9 @@ int main(int argc, char **argv) {
 			case 'd':
 				did = atoi(optarg);
 				if (did > DIDS || did < 0) {
-					fprintf(stderr, "ERROR: Option -d must be a number 0 to %d\n", DIDS);
+					if (!quiet) {
+						fprintf(stderr, "ERROR: Option -d must be a number 0 to %d\n", DIDS);
+					}
 					exit(EXIT_FAILURE);
 				}
 				break;
@@ -128,7 +130,9 @@ int main(int argc, char **argv) {
 				if (uVolt < 1 || uVolt > 1550) {
 					error("Option -n must be between 1 and 1550.");
 				}
-				printf("Found vid %d for for %dmV.\n", mVToVid(uVolt), uVolt);
+				if (!quiet) {
+					printf("Found vid %d for for %dmV.\n", mVToVid(uVolt), uVolt);
+				}
 				exit(EXIT_SUCCESS);
 			case 'v':
 				cv = atoi(optarg);
@@ -143,6 +147,9 @@ int main(int argc, char **argv) {
 				break;
 			case 'i':
 				debug = 1;
+				break;
+			case 's':
+				quiet = 1;
 				break;
 			case 't':
 				testMode = 1;
@@ -165,10 +172,13 @@ int main(int argc, char **argv) {
 		error("You must pass the -p argument when passing the -x argument.");
 	}
 
-	printf("Voltage ID encodings: %s\n", (pvi ? "PVI (parallel)" : "SVI (serial)"));
-	printf("Detected CPU model %xh, from family %xh with %d CPU cores.\n", cpuModel, cpuFamily, cores);
-	if (nv > -1 || cv > -1 || fid > -1 || did > -1) {
-		printf("%s\n", (testMode ? "Preview mode On - No P-State values will be changed." : "PREVIEW MODE OFF - P-STATES WILL BE CHANGED!"));
+	if (!quiet) {
+		printf("Voltage ID encodings: %s\n", (pvi ? "PVI (parallel)" : "SVI (serial)"));
+		printf("Detected CPU model %xh, from family %xh with %d CPU cores.\n", cpuModel, cpuFamily, cores);
+		if (nv > -1 || cv > -1 || fid > -1 || did > -1) {
+			printf("%s\n", (testMode ? "Preview mode On - No P-State values will be changed."
+									 : "PREVIEW MODE OFF - P-STATES WILL BE CHANGED!"));
+		}
 	}
 
 	if (core == -1) {
@@ -192,14 +202,20 @@ int main(int argc, char **argv) {
 		getReg(PSTATE_CURRENT_LIMIT);
 		int i, minPstate = getDec(PSTATE_MAX_VAL_BITS) + 1, maxPstate = getDec(CUR_PSTATE_LIMIT_BITS) + 1;
 		getReg(PSTATE_STATUS);
-		printf("\nCore %d | P-State Limits (non-turbo): Highest: %d ; Lowest %d | Current P-State: %d\n", core, maxPstate, minPstate, getDec(CUR_PSTATE_BITS) + 1);
-		printf(
-			"%7s%7s%7s%7s%7s%8s%8s%8s%6s%7s%7s%7s%8s%9s\n",
-			"Pstate","Status","CpuFid","CpuDid","CpuVid","CpuMult","CpuFreq","CpuVolt","NbVid","NbVolt","IddVal","IddDiv","CpuCurr","CpuPower"
-		);
+		if (!quiet) {
+			printf("\nCore %d | P-State Limits (non-turbo): Highest: %d ; Lowest %d | Current P-State: %d\n", core,
+				   maxPstate, minPstate, getDec(CUR_PSTATE_BITS) + 1);
+			printf(
+					"%7s%7s%7s%7s%7s%8s%8s%8s%6s%7s%7s%7s%8s%9s\n",
+					"Pstate", "Status", "CpuFid", "CpuDid", "CpuVid", "CpuMult", "CpuFreq", "CpuVolt", "NbVid",
+					"NbVolt", "IddVal", "IddDiv", "CpuCurr", "CpuPower"
+			);
+		}
 		if (!currentOnly) {
 			for (i = 0; i < pstates_count; i++) {
-				printf("%7d", (pstate >= 0 ? pstate : i));
+				if (!quiet) {
+					printf("%7d", (pstate >= 0 ? pstate : i));
+				}
 				getReg(tmp_pstates[i]);
 				if (nv > -1 || cv > -1 || fid > -1 || did > -1 || togglePs > -1) {
 					if (togglePs > -1) {
@@ -225,7 +241,9 @@ int main(int argc, char **argv) {
 				}
 			}
 		}
-		printf("%7s", "current");
+		if (!quiet) {
+			printf("%7s", "current");
+		}
 		getReg(COFVID_STATUS);
 		printBaseFmt(0);
 	}
@@ -234,7 +252,7 @@ int main(int argc, char **argv) {
 }
 
 void getCpuInfo() {
-	if (debug) { printf("DEBUG: Checking CPU info.\n"); }
+	if (debug && !quiet) { printf("DEBUG: Checking CPU info.\n"); }
 	FILE *fp;
 	char buff[8192];
 
@@ -265,7 +283,7 @@ void getCpuInfo() {
 }
 
 void checkFamily() {
-	if (debug) { printf("DEBUG: Setting variables based on CPU model.\n"); }
+	if (debug && !quiet) { printf("DEBUG: Setting variables based on CPU model.\n"); }
 	switch (cpuFamily) {
 		case AMD10H:
 			getVidType();
@@ -313,6 +331,7 @@ void usage() {
 	printf("    -e    Show current P-State only.\n");
 	printf("    -t    Preview changes without applying them to the CPU.\n");
 	printf("    -u    Try to find voltage id by voltage (millivolts).\n");
+	printf("    -s    Hide all output / errors.\n");
 	printf("    -i    Show debug info.\n");
 	printf("    -h    Shows this information.\n");
 	printf("    -x    Explains field name descriptions.\n");
@@ -350,10 +369,13 @@ void printBaseFmt(const int idd) {
 	const int CpuVid = getDec(CPU_VID_BITS), CpuDid = getDec(CPU_DID_BITS), CpuFid = getDec(CPU_FID_BITS);
 	const int NbVid  = getDec(NB_VID_BITS), status = (idd ? getDec(PSTATE_EN_BITS) : 1);
 	const double CpuVolt = vidTomV(CpuVid);
-	printf(
-		"%7d%7d%7d%7d%7.2fx%5dMHz%6.0fuV%6d%5.0fuV",
-		status, CpuFid,CpuDid,CpuVid,getCpuMultiplier(CpuFid, CpuDid),getClockSpeed(CpuFid, CpuDid),CpuVolt,NbVid,vidTomV(NbVid)
-	);
+	if (!quiet) {
+		printf(
+				"%7d%7d%7d%7d%7.2fx%5dMHz%6.0fuV%6d%5.0fuV",
+				status, CpuFid, CpuDid, CpuVid, getCpuMultiplier(CpuFid, CpuDid), getClockSpeed(CpuFid, CpuDid),
+				CpuVolt, NbVid, vidTomV(NbVid)
+		);
+	}
 	if (idd) {
 		int IddDiv = getDec(IDD_DIV_BITS), IddVal = getDec(IDD_VALUE_BITS);
 		switch (IddDiv) {
@@ -368,17 +390,23 @@ void printBaseFmt(const int idd) {
 				break;
 			case 3:
 			default:
-				printf("\n");
+				if (!quiet) {
+					printf("\n");
+				}
 				return;
 		}
 		float cpuCurrDraw = ((float)IddVal / IddDiv);
-		printf("%7d%7d%7.2fA%8.2fW", IddVal, IddDiv, cpuCurrDraw, ((cpuCurrDraw * CpuVolt) / 1000));
+		if (!quiet) {
+			printf("%7d%7d%7.2fA%8.2fW", IddVal, IddDiv, cpuCurrDraw, ((cpuCurrDraw * CpuVolt) / 1000));
+		}
 	}
-	printf("\n");
+	if (!quiet) {
+		printf("\n");
+	}
 }
 
 void getReg(const uint32_t reg) {
-	if (debug) { printf("DEBUG: Getting data from CPU %d at register %x\n", core, reg); }
+	if (debug && !quiet) { printf("DEBUG: Getting data from CPU %d at register %x\n", core, reg); }
 	char path[32];
 	int fh;
 
@@ -511,7 +539,7 @@ int mVToVid(const float mV) {
 	for (i = 1; i <= maxVid; i++) {
 		tmpv = volt - i * mult;
 		if (tmpv >= min && tmpv <= max) {
-			if (debug) { printf("Found vid %d for voltage %.2f\n", i, tmpv); }
+			if (debug && !quiet) { printf("Found vid %d for voltage %.2f\n", i, tmpv); }
 			return i;
 		}
 	}
@@ -542,6 +570,8 @@ void getVidType() {
 
 
 void error(const char *message) {
-	fprintf(stderr, "ERROR: %s\n", message);
+	if (!quiet) {
+		fprintf(stderr, "ERROR: %s\n", message);
+	}
 	exit(EXIT_FAILURE);
 }
