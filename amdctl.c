@@ -228,6 +228,7 @@ int main(int argc, char **argv) {
 		printf("%7s", "current");
 		getReg(COFVID_STATUS);
 		printBaseFmt(0);
+		printf("\n");
 	}
 
 	return EXIT_SUCCESS;
