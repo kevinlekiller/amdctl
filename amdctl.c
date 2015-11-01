@@ -396,7 +396,7 @@ void printBaseFmt(const int idd) {
 				return;
 		}
 		int cpuCurrDraw = (IddVal / IddDiv);
-		printf("%7d%7d%8dA%9.2fW", IddVal, IddDiv, cpuCurrDraw, ((cpuCurrDraw * CpuVolt) / 1000));
+		printf("%7d%7d%7dA%8.2fW", IddVal, IddDiv, cpuCurrDraw, ((cpuCurrDraw * CpuVolt) / 1000));
 	}
 	printf("\n");
 }
