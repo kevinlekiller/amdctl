@@ -82,7 +82,7 @@ int main(int argc, char **argv) {
 	checkFamily();
 
 	int low = -1, high = -1, nv = -1, cv = -1, c, opts = 0, did = -1, fid = -1, currentOnly = 0, togglePs = -1, uVolt;
-	while ((c = getopt(argc, argv, "aeghitxc:d:f:l:m:n:p:u:v:")) != -1) {
+	while ((c = getopt(argc, argv, "eghitxa:c:d:f:l:m:n:p:u:v:")) != -1) {
 		opts = 1;
 		switch (c) {
 			case 'a':
