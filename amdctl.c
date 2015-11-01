@@ -216,7 +216,7 @@ int main(int argc, char **argv) {
 		getReg(PSTATE_STATUS);
 		printf("\nCore %d | P-State Limits (non-turbo): Highest: %d ; Lowest %d | Current P-State: %d\n", core, maxPstate, minPstate, getDec(CUR_PSTATE_BITS) + 1);
 		printf(
-			"%7s%7s%7s%7s%8s%9s%11s%8s%6s%9s%7s%7s%9s%10s\n",
+			"%7s%7s%7s%7s%7s%8s%8s%8s%6s%7s%7s%7s%8s%9s\n",
 			"Pstate","Status","CpuFid","CpuDid","CpuVid","CpuMult","CpuFreq","CpuVolt","NbVid","NbVolt","IddVal","IddDiv","CpuCurr","CpuPower"
 		);
 		if (!currentOnly) {
@@ -375,7 +375,7 @@ void printBaseFmt(const int idd) {
 	const int NbVid  = getDec(NB_VID_BITS), status = (idd ? getDec(PSTATE_EN_BITS) : 1);
 	const double CpuVolt = vidTomV(CpuVid);
 	printf(
-		"%7d%7d%7d%8d%8.2fx%8dMHz%8.0fuV%6d%9.0fuV",
+		"%7d%7d%7d%7d%7.2fx%5dMHz%6.0fuV%6d%5.0fuV",
 		status, CpuFid,CpuDid,CpuVid,getCpuMultiplier(CpuFid, CpuDid),getClockSpeed(CpuFid, CpuDid),CpuVolt,NbVid,vidTomV(NbVid)
 	);
 	if (idd) {
