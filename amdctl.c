@@ -80,7 +80,7 @@ int main(int argc, char **argv) {
 	getCpuInfo();
 	checkFamily();
 
-	int low = -1, high = -1, nv = -1, cv = -1, c, opts = 0, did = -1, fid = -1, currentOnly = 0, togglePs = -1, uVolt;
+	int nv = -1, cv = -1, c, opts = 0, did = -1, fid = -1, currentOnly = 0, togglePs = -1, uVolt;
 	while ((c = getopt(argc, argv, "eghitxa:c:d:f:l:m:n:p:u:v:")) != -1) {
 		opts = 1;
 		switch (c) {
@@ -107,18 +107,6 @@ int main(int argc, char **argv) {
 				fid = atoi(optarg);
 				if (fid > 0x2f || fid < 0) {
 					error("Option -f must be a number 0 to 47");
-				}
-				break;
-			case 'l':
-				low = atoi(optarg);
-				if (low < 0 || low >= PSTATES) {
-					error("Option -l must be less than total number of P-States (8 or 5 depending on CPU).");
-				}
-				break;
-			case 'm':
-				high = atoi(optarg);
-				if (high < 0 || high >= PSTATES) {
-					error("Option -m must be less than total number of P-States (8 or 5 depending on CPU).");
 				}
 				break;
 			case 'n':
@@ -179,7 +167,7 @@ int main(int argc, char **argv) {
 
 	printf("Voltage ID encodings: %s\n", (pvi ? "PVI (parallel)" : "SVI (serial)"));
 	printf("Detected CPU model %xh, from family %xh with %d CPU cores.\n", cpuModel, cpuFamily, cores);
-	if (nv > -1 || cv > -1 || low > -1 || high > -1 || fid > -1 || did > -1) {
+	if (nv > -1 || cv > -1 || fid > -1 || did > -1) {
 		printf("%s\n", (testMode ? "Preview mode On - No P-State values will be changed." : "PREVIEW MODE OFF - P-STATES WILL BE CHANGED!"));
 	}
 
@@ -202,15 +190,6 @@ int main(int argc, char **argv) {
 
 	for (; core < cores; core++) {
 		getReg(PSTATE_CURRENT_LIMIT);
-		if (low > -1 || high > -1) {
-			if (low > -1) {
-				updateBuffer(PSTATE_MAX_VAL_BITS, low);
-			}
-			if (high > -1) {
-				updateBuffer(CUR_PSTATE_LIMIT_BITS, high);
-			}
-			setReg(PSTATE_CURRENT_LIMIT);
-		}
 		int i, minPstate = getDec(PSTATE_MAX_VAL_BITS) + 1, maxPstate = getDec(CUR_PSTATE_LIMIT_BITS) + 1;
 		getReg(PSTATE_STATUS);
 		printf("\nCore %d | P-State Limits (non-turbo): Highest: %d ; Lowest %d | Current P-State: %d\n", core, maxPstate, minPstate, getDec(CUR_PSTATE_BITS) + 1);
@@ -328,8 +307,6 @@ void usage() {
 	printf("    -p    P-state to work on.\n");
 	printf("    -v    Set CPU voltage id (vid).\n");
 	printf("    -n    Set north bridge voltage id (vid).\n");
-	printf("    -l    Set the lowest useable (non turbo) P-State for the CPU core(s).\n");
-	printf("    -m    Set the highest useable (non turbo) P-State for the CPU core(s).\n");
 	printf("    -d    Set the CPU divisor id (did).\n");
 	printf("    -f    Set the CPU frequency id (fid).\n");
 	printf("    -a    Activate (1) or deactivate (0) P-state.\n");
