@@ -477,7 +477,11 @@ void updateBuffer(const char *loc, int replacement) {
 
 	sscanf(loc, "%d:%d", &high, &low);
 	if (high == low) {
-		buffer ^= (-replacement ^ buffer) & (1 << high);
+		if (replacement) {
+			buffer |= (1ULL << high);
+		} else {
+			buffer &= ~(1ULL << high);
+		}
 	} else {
 		if (replacement < (2 << (high - low))) {
 			buffer = (buffer & ((1 << low) - (2 << high) - 1)) | (replacement << low);
@@ -492,7 +496,7 @@ int getDec(const char *loc) {
 	// From msr-tools.
 	sscanf(loc, "%d:%d", &high, &low);
 	if (high == low) {
-		return ((temp >> high)  & 0x01);
+		return ((temp >> high)  & 1ULL);
 	} else {
 		bits = high - low + 1;
 		if (bits < 64) {
