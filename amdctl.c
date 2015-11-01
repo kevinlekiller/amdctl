@@ -188,13 +188,15 @@ int main(int argc, char **argv) {
 	for (; core < cores; core++) {
 		printf("CPU Core %d\n", core);
 		getReg(PSTATE_CURRENT_LIMIT);
-		if (low > -1) {
-			updateBuffer(PSTATE_MAX_VAL_BITS, low);
+		if (low > -1 || high > -1) {
+			if (low > -1) {
+				updateBuffer(PSTATE_MAX_VAL_BITS, low);
+			}
+			if (high > -1) {
+				updateBuffer(CUR_PSTATE_LIMIT_BITS, high);
+			}
+			setReg(PSTATE_CURRENT_LIMIT);
 		}
-		if (high > -1) {
-			updateBuffer(CUR_PSTATE_LIMIT_BITS, high);
-		}
-		setReg(PSTATE_CURRENT_LIMIT);
 		puts("\tP-State Limits (non-turbo):");
 		int i, minPstate = getDec(PSTATE_MAX_VAL_BITS) + 1;
 		printf("\t\tHighest                 %d\n", getDec(CUR_PSTATE_LIMIT_BITS) + 1);
@@ -203,19 +205,21 @@ int main(int argc, char **argv) {
 			for (i = 0; i < pstates_count; i++) {
 				printf("\tP-State: %d\n", (pstate >= 0 ? pstate : i));
 				getReg(tmp_pstates[i]);
-				if (nv > -1) {
-					updateBuffer(NB_VID_BITS, nv);
+				if (nv > -1 || cv > -1 || fid > -1 || did > -1) {
+					if (nv > -1) {
+						updateBuffer(NB_VID_BITS, nv);
+					}
+					if (cv > -1) {
+						updateBuffer(CPU_VID_BITS, cv);
+					}
+					if (fid > -1) {
+						updateBuffer(CPU_FID_BITS, fid);
+					}
+					if (did > -1) {
+						updateBuffer(CPU_DID_BITS, did);
+					}
+					setReg(tmp_pstates[i]);
 				}
-				if (cv > -1) {
-					updateBuffer(CPU_VID_BITS, cv);
-				}
-				if (fid > -1) {
-					updateBuffer(CPU_FID_BITS, fid);
-				}
-				if (did > -1) {
-					updateBuffer(CPU_DID_BITS, did);
-				}
-				setReg(tmp_pstates[i]);
 				printBaseFmt(1);
 				if (i >= minPstate) {
 					break;
@@ -427,7 +431,7 @@ void setReg(const uint32_t reg) {
 		
 		if (pwrite(fh, &buffer, sizeof buffer, reg) != sizeof buffer) {
 			close(fh);
-			error("Could write new value to CPU!");
+			error("Could not write new value to CPU!");
 		}
 		close(fh);
 	}
