@@ -216,7 +216,7 @@ int main(int argc, char **argv) {
 		getReg(PSTATE_STATUS);
 		printf("\nCore %d | P-State Limits (non-turbo): Highest: %d ; Lowest %d | Current P-State: %d\n", core, maxPstate, minPstate, getDec(CUR_PSTATE_BITS) + 1);
 		printf(
-			"%7s%7s%7s%7s%7s%8s%8s%8s%6s%7s%7s%7s%8s%9s\n",
+			"%7s%7s%7s%7s%7s%8s%8s%8s%6s%7s%7s%7s%10s%9s\n",
 			"Pstate","Status","CpuFid","CpuDid","CpuVid","CpuMult","CpuFreq","CpuVolt","NbVid","NbVolt","IddVal","IddDiv","CpuCurr","CpuPower"
 		);
 		if (!currentOnly) {
@@ -395,8 +395,8 @@ void printBaseFmt(const int idd) {
 				printf("\n");
 				return;
 		}
-		int cpuCurrDraw = (IddVal / IddDiv);
-		printf("%7d%7d%7dA%8.2fW", IddVal, IddDiv, cpuCurrDraw, ((cpuCurrDraw * CpuVolt) / 1000));
+		float cpuCurrDraw = (IddVal / IddDiv);
+		printf("%7d%7d%7.2fA%8.2fW", IddVal, IddDiv, cpuCurrDraw, ((cpuCurrDraw * CpuVolt) / 1000));
 	}
 	printf("\n");
 }
@@ -496,7 +496,7 @@ int getDec(const char *loc) {
 	// From msr-tools.
 	sscanf(loc, "%d:%d", &high, &low);
 	if (high == low) {
-		return ((temp >> high)  & 1ULL);
+		return (int) ((temp >> high)  & 1ULL);
 	} else {
 		bits = high - low + 1;
 		if (bits < 64) {
