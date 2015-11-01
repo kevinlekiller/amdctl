@@ -135,6 +135,7 @@ int main(int argc, char **argv) {
 				} else {
 					error("Option -p must be less than total number of P-States (8 or 5 depending on CPU).");
 				}
+				break;
 			case 'u':
 				uVolt = atoi(optarg);
 				if (uVolt < 1 || uVolt > 1550) {
@@ -161,10 +162,12 @@ int main(int argc, char **argv) {
 				break;
 			case 'x':
 				fieldDescriptions();
+				break;
 			case '?':
 			case 'h':
 			default:
 				usage();
+				break;
 		}
 	}
 
