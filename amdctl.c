@@ -186,7 +186,6 @@ int main(int argc, char **argv) {
 	}
 
 	for (; core < cores; core++) {
-		printf("CPU Core %d\n", core);
 		getReg(PSTATE_CURRENT_LIMIT);
 		if (low > -1 || high > -1) {
 			if (low > -1) {
@@ -197,13 +196,12 @@ int main(int argc, char **argv) {
 			}
 			setReg(PSTATE_CURRENT_LIMIT);
 		}
-		puts("\tP-State Limits (non-turbo):");
 		int i, minPstate = getDec(PSTATE_MAX_VAL_BITS) + 1;
-		printf("\t\tHighest                 %d\n", getDec(CUR_PSTATE_LIMIT_BITS) + 1);
-		printf("\t\tLowest                  %d\n", minPstate);
+		printf("Core %d | P-State Limits (non-turbo): Highest: %d ; Lowest %d\n", core, getDec(CUR_PSTATE_LIMIT_BITS) + 1, minPstate);
+		printf("%7s%7s%7s%8s%8s%8s%8s%6s%7s%8s%9s\n", "Pstate","CpuFid","CpuDid","CpuFid","CpuMult","CpuFreq","CpuVolt","NbVid","NbVolt","CpuCurr","CpuPower");
 		if (!currentOnly) {
 			for (i = 0; i < pstates_count; i++) {
-				printf("\tP-State: %d\n", (pstate >= 0 ? pstate : i));
+				printf("%6d", (pstate >= 0 ? pstate : i));
 				getReg(tmp_pstates[i]);
 				if (nv > -1 || cv > -1 || fid > -1 || did > -1) {
 					if (nv > -1) {
@@ -336,20 +334,10 @@ void printBaseFmt(const int idd) {
 	const int CpuDid = getDec(CPU_DID_BITS);
 	const int CpuFid = getDec(CPU_FID_BITS);
 	const int NbVid  = getDec(NB_VID_BITS);
-	const float cpuVolt = vidTomV(CpuVid);
-
-	printf("\t\tCPU voltage id          %d\n", CpuVid);
-	printf("\t\tCPU divisor id          %d\n", CpuDid);
-	printf("\t\tCPU frequency id        %d\n", CpuFid);
-	printf("\t\tCPU multiplier          %dx\n", getCpuMultiplier(CpuFid, CpuDid));
-	printf("\t\tCPU frequency           %dMHz\n", getClockSpeed(CpuFid, CpuDid));
-	printf("\t\tCPU voltgage            %.2fmV\n", cpuVolt);
-	printf("\t\tNorth Bridge voltage id %d\n", NbVid);
-	printf("\t\tNorth Bridge voltage    %.2fmV\n", vidTomV(NbVid));
-
+	const float CpuVolt = vidTomV(CpuVid);
+	printf("%7d%7d%8d%8dx%8dMHz%8.2fuV%6d%7.2fuV", CpuFid,CpuDid,CpuVid,getCpuMultiplier(CpuFid, CpuDid),getClockSpeed(CpuFid, CpuDid),CpuVolt,NbVid,vidTomV(NbVid));
 	if (idd) {
 		int IddDiv = getDec(IDD_DIV_BITS);
-		printf("\t\tCore current divisor id %d\n", IddDiv);
 		switch (IddDiv) {
 			case 0b00:
 				IddDiv = 1;
@@ -362,12 +350,13 @@ void printBaseFmt(const int idd) {
 				break;
 			case 0b11:
 			default:
+				printf("\n");
 				return;
 		}
 		int cpuCurrDraw = abs(getDec(IDD_VALUE_BITS) / IddDiv);
-		printf("\t\tCore current draw       %dA\n", cpuCurrDraw);
-		printf("\t\tCore power draw         %.2fW\n", ((cpuCurrDraw * cpuVolt) / 1000));
+		printf("%8dA%9.2fW", cpuCurrDraw, ((cpuCurrDraw * CpuVolt) / 1000));
 	}
+	printf("\n");
 }
 
 void getReg(const uint32_t reg) {
