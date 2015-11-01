@@ -375,7 +375,7 @@ void printBaseFmt(const int idd) {
 	const int NbVid  = getDec(NB_VID_BITS), status = (idd ? getDec(PSTATE_EN_BITS) : 1);
 	const double CpuVolt = vidTomV(CpuVid);
 	printf(
-		"%7d%7d%7d%8d%8.2fx%8dMHz%8fuV%6d%9fuV",
+		"%7d%7d%7d%8d%8.2fx%8dMHz%8.0fuV%6d%9.0fuV",
 		status, CpuFid,CpuDid,CpuVid,getCpuMultiplier(CpuFid, CpuDid),getClockSpeed(CpuFid, CpuDid),CpuVolt,NbVid,vidTomV(NbVid)
 	);
 	if (idd) {
