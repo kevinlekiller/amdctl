@@ -25,13 +25,13 @@
 void printBaseFmt(const int);
 int getDec(const char *);
 void getReg(const uint32_t);
-void updateBuffer(const char *, int);
+void updateBuffer(const char *, const int);
 void setReg(const uint32_t);
 void getVidType();
 double vidTomV(const int);
 float getCpuMultiplier(const int, const int);
 int getClockSpeed(const int, const int);
-int mVToVid(float);
+int mVToVid(const float);
 void getCpuInfo();
 void checkFamily();
 void error(const char *);
@@ -471,7 +471,7 @@ void setReg(const uint32_t reg) {
 	}
 }
 
-void updateBuffer(const char *loc, int replacement) {
+void updateBuffer(const char *loc, const int replacement) {
 	int low, high;
 
 	sscanf(loc, "%d:%d", &high, &low);
@@ -517,9 +517,9 @@ double vidTomV(const int vid) {
 	return (MAX_VOLTAGE - (vid > MAX_VID ? MAX_VID : vid) * VID_DIVIDOR2);
 }
 
-int mVToVid(float mV) {
+int mVToVid(const float mV) {
 	int maxVid = MAX_VID, i;
-	float tmpv, volt = MAX_VOLTAGE, mult = VID_DIVIDOR2;
+	float tmpv, volt = MAX_VOLTAGE, mult = VID_DIVIDOR2, min, max;
 
 	if (pvi) {
 		if (mV > MID_VOLTAGE) {
@@ -529,7 +529,8 @@ int mVToVid(float mV) {
 			volt = MID_VOLTAGE;
 		}
 	}
-	float min = (mV - (mult / 2)), max = (mV + (mult / 2));
+	min = (mV - (mult / 2));
+	max = (mV + (mult / 2));
 	for (i = 1; i <= maxVid; i++) {
 		tmpv = volt - i * mult;
 		if (tmpv >= min && tmpv <= max) {
