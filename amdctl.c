@@ -353,8 +353,7 @@ void printBaseFmt(const int idd) {
 				printf("\n");
 				return;
 		}
-		int IddVal = getDec(IDD_VALUE_BITS);
-		int cpuCurrDraw = (IddVal > IddDiv ? IddVal / IddDiv : IddDiv / IddVal);
+		int cpuCurrDraw = (getDec(IDD_VALUE_BITS) / IddDiv);
 		printf("%8dA%9.2fW", cpuCurrDraw, ((cpuCurrDraw * CpuVolt) / 1000));
 	}
 	printf("\n");
