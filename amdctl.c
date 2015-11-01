@@ -53,6 +53,7 @@ void fieldDescriptions();
 #define AMD16H 0x16 // Jaguar
 #define AMD17H 0x17 // Zen
 
+#define PSTATE_EN_BITS        "63:63"
 #define PSTATE_MAX_VAL_BITS   "6:4"
 #define CUR_PSTATE_LIMIT_BITS "2:0"
 #define CUR_PSTATE_BITS       "2:0"
@@ -80,10 +81,16 @@ int main(int argc, char **argv) {
 	getCpuInfo();
 	checkFamily();
 
-	int low = -1, high = -1, nv = -1, cv = -1, c, opts = 0, did = -1, fid = -1, currentOnly = 0, uVolt;
-	while ((c = getopt(argc, argv, "eghitxc:d:f:l:m:n:p:u:v:")) != -1) {
+	int low = -1, high = -1, nv = -1, cv = -1, c, opts = 0, did = -1, fid = -1, currentOnly = 0, togglePs = -1, uVolt;
+	while ((c = getopt(argc, argv, "aeghitxc:d:f:l:m:n:p:u:v:")) != -1) {
 		opts = 1;
 		switch (c) {
+			case 'a':
+				togglePs = atoi(optarg);
+				if (togglePs < 0 || togglePs > 1) {
+					error("Option -a must be 1 or 0.");
+				}
+				break;
 			case 'c':
 				core = atoi(optarg);
 				if (core > cores || core < 0) {
@@ -160,9 +167,12 @@ int main(int argc, char **argv) {
 				usage();
 		}
 	}
-	
+
 	if (!opts) {
 		usage();
+	}
+	if (togglePs && pstate == -1) {
+		error("You must pass the -p argument when passing the -x argument.");
 	}
 
 	printf("Voltage ID encodings: %s\n", (pvi ? "PVI (parallel)" : "SVI (serial)"));
@@ -203,14 +213,17 @@ int main(int argc, char **argv) {
 		getReg(PSTATE_STATUS);
 		printf("\nCore %d | P-State Limits (non-turbo): Highest: %d ; Lowest %d | Current P-State: %d\n", core, maxPstate, minPstate, getDec(CUR_PSTATE_BITS) + 1);
 		printf(
-				"%7s%7s%7s%8s%9s%11s%10s%6s%11s%7s%7s%9s%10s\n",
-				"Pstate","CpuFid","CpuDid","CpuVid","CpuMult","CpuFreq","CpuVolt","NbVid","NbVolt","IddVal","IddDiv","CpuCurr","CpuPower"
+			"%7s%7s%7s%7s%8s%9s%11s%10s%6s%11s%7s%7s%9s%10s\n",
+			"Pstate","Status","CpuFid","CpuDid","CpuVid","CpuMult","CpuFreq","CpuVolt","NbVid","NbVolt","IddVal","IddDiv","CpuCurr","CpuPower"
 		);
 		if (!currentOnly) {
 			for (i = 0; i < pstates_count; i++) {
 				printf("%7d", (pstate >= 0 ? pstate : i));
 				getReg(tmp_pstates[i]);
-				if (nv > -1 || cv > -1 || fid > -1 || did > -1) {
+				if (nv > -1 || cv > -1 || fid > -1 || did > -1 || togglePs > -1) {
+					if (togglePs > -1) {
+						updateBuffer(PSTATE_EN_BITS, togglePs);
+					}
 					if (nv > -1) {
 						updateBuffer(NB_VID_BITS, nv);
 					}
@@ -317,6 +330,7 @@ void usage() {
 	printf("    -m    Set the highest useable (non turbo) P-State for the CPU core(s).\n");
 	printf("    -d    Set the CPU divisor id (did).\n");
 	printf("    -f    Set the CPU frequency id (fid).\n");
+	printf("    -a    Activate (1) or deactivate (0) P-state.\n");
 	printf("    -e    Show current P-State only.\n");
 	printf("    -t    Preview changes without applying them to the CPU.\n");
 	printf("    -u    Try to find voltage id by voltage (millivolts).\n");
@@ -337,6 +351,7 @@ void usage() {
 void fieldDescriptions() {
 	printf("Core:        Cpu core.\n");
 	printf("P-State:     Power state, lower number means higher performance, 'current' means the P-State the CPU is in currently.\n");
+	printf("Status:      If the P-State is enabled (1) or disabled (0).\n");
 	printf("CpuFid:      Core frequency ID, with the CpuDid, this is used to calculate the core clock speed.\n");
 	printf("CpuDid:      Core divisor ID, see CpuFid.\n");
 	printf("CpuVid:      Core voltage ID, used to calculate the core voltage. (lower numbers mean higher voltage).\n");
@@ -346,19 +361,20 @@ void fieldDescriptions() {
 	printf("NbVid:       North bridge voltage ID.\n");
 	printf("NbVolt:      North bridge voltage, in millivolts.\n");
 	printf("IddVal:      Core current (intensity) ID. Used to calculate cpu current draw and power draw.\n");
-	printf("IddDiv       Core current (intensity) dividor (IddVal / IddDiv = current draw).");
+	printf("IddDiv       Core current (intensity) dividor (IddVal / IddDiv = current draw).\n");
 	printf("CpuCurr:     The cpu current draw, in amps.\n");
 	printf("CpuPower:    The cpu power draw, in watts.\n");
 	exit(EXIT_SUCCESS);
 }
 
 void printBaseFmt(const int idd) {
-	const int CpuVid = getDec(CPU_VID_BITS);
-	const int CpuDid = getDec(CPU_DID_BITS);
-	const int CpuFid = getDec(CPU_FID_BITS);
-	const int NbVid  = getDec(NB_VID_BITS);
+	const int CpuVid = getDec(CPU_VID_BITS), CpuDid = getDec(CPU_DID_BITS), CpuFid = getDec(CPU_FID_BITS);
+	const int NbVid  = getDec(NB_VID_BITS), status = (idd ? getDec(PSTATE_EN_BITS) : 1);
 	const double CpuVolt = vidTomV(CpuVid);
-	printf("%7d%7d%8d%8.2fx%8dMHz%8.2fuV%6d%9.2fuV", CpuFid,CpuDid,CpuVid,getCpuMultiplier(CpuFid, CpuDid),getClockSpeed(CpuFid, CpuDid),CpuVolt,NbVid,vidTomV(NbVid));
+	printf(
+		"%7d%7d%7d%8d%8.2fx%8dMHz%8.2fuV%6d%9.2fuV",
+		status, CpuFid,CpuDid,CpuVid,getCpuMultiplier(CpuFid, CpuDid),getClockSpeed(CpuFid, CpuDid),CpuVolt,NbVid,vidTomV(NbVid)
+	);
 	if (idd) {
 		int IddDiv = getDec(IDD_DIV_BITS), IddVal = getDec(IDD_VALUE_BITS);
 		switch (IddDiv) {
@@ -377,7 +393,7 @@ void printBaseFmt(const int idd) {
 				return;
 		}
 		int cpuCurrDraw = (IddVal / IddDiv);
-		printf("%7d,%7d%8dA%9.2fW", IddVal, IddDiv, cpuCurrDraw, ((cpuCurrDraw * CpuVolt) / 1000));
+		printf("%7d%7d%8dA%9.2fW", IddVal, IddDiv, cpuCurrDraw, ((cpuCurrDraw * CpuVolt) / 1000));
 	}
 	printf("\n");
 }
