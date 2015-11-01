@@ -196,8 +196,9 @@ int main(int argc, char **argv) {
 			}
 			setReg(PSTATE_CURRENT_LIMIT);
 		}
+		getReg(PSTATE_STATUS);
 		int i, minPstate = getDec(PSTATE_MAX_VAL_BITS) + 1;
-		printf("Core %d | P-State Limits (non-turbo): Highest: %d ; Lowest %d\n", core, getDec(CUR_PSTATE_LIMIT_BITS) + 1, minPstate);
+		printf("Core %d | P-State Limits (non-turbo): Highest: %d ; Lowest %d | Current P-State: %d\n", core, getDec(CUR_PSTATE_LIMIT_BITS) + 1, minPstate, getDec(CUR_PSTATE_BITS) + 1);
 		printf("%7s%7s%7s%8s%8s%8s%8s%6s%7s%8s%9s\n", "Pstate","CpuFid","CpuDid","CpuFid","CpuMult","CpuFreq","CpuVolt","NbVid","NbVolt","CpuCurr","CpuPower");
 		if (!currentOnly) {
 			for (i = 0; i < pstates_count; i++) {
@@ -224,8 +225,7 @@ int main(int argc, char **argv) {
 				}
 			}
 		}
-		getReg(PSTATE_STATUS);
-		printf("\tCurrent P-State: %d\n", getDec(CUR_PSTATE_BITS) + 1);
+		printf("%7s", "current");
 		getReg(COFVID_STATUS);
 		printBaseFmt(0);
 	}
