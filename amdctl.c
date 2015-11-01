@@ -174,7 +174,7 @@ int main(int argc, char **argv) {
 	if (!opts) {
 		usage();
 	}
-	if (togglePs && pstate == -1) {
+	if (togglePs > -1 && pstate == -1) {
 		error("You must pass the -p argument when passing the -x argument.");
 	}
 
