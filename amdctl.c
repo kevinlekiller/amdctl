@@ -30,7 +30,7 @@ void updateBuffer(const char *, uint64_t);
 void setReg(const uint32_t);
 void getVidType();
 float vidTomV(const int);
-int getCpuMultiplier(const int, const int);
+float getCpuMultiplier(const int, const int);
 int getClockSpeed(const int, const int);
 int mVToVid(float);
 void getCpuInfo();
@@ -199,7 +199,7 @@ int main(int argc, char **argv) {
 		int i, minPstate = getDec(PSTATE_MAX_VAL_BITS) + 1, maxPstate = getDec(CUR_PSTATE_LIMIT_BITS) + 1;
 		getReg(PSTATE_STATUS);
 		printf("\nCore %d | P-State Limits (non-turbo): Highest: %d ; Lowest %d | Current P-State: %d\n", core, maxPstate, minPstate, getDec(CUR_PSTATE_BITS) + 1);
-		printf("%7s%7s%7s%8s%9s%11s%10s%6s%11s%9s%10s\n", "Pstate","CpuFid","CpuDid","CpuVid","CpuMult","CpuFreq","CpuVolt","NbVid","NbVolt","CpuCurr","CpuPower");
+		printf("%7s%7s%7s%8s%11s%11s%10s%6s%11s%9s%10s\n", "Pstate","CpuFid","CpuDid","CpuVid","CpuMult","CpuFreq","CpuVolt","NbVid","NbVolt","CpuCurr","CpuPower");
 		if (!currentOnly) {
 			for (i = 0; i < pstates_count; i++) {
 				printf("%7d", (pstate >= 0 ? pstate : i));
@@ -335,7 +335,7 @@ void printBaseFmt(const int idd) {
 	const int CpuFid = getDec(CPU_FID_BITS);
 	const int NbVid  = getDec(NB_VID_BITS);
 	const float CpuVolt = vidTomV(CpuVid);
-	printf("%7d%7d%8d%8dx%8dMHz%8.2fuV%6d%9.2fuV", CpuFid,CpuDid,CpuVid,getCpuMultiplier(CpuFid, CpuDid),getClockSpeed(CpuFid, CpuDid),CpuVolt,NbVid,vidTomV(NbVid));
+	printf("%7d%7d%8d%8.2fx%8dMHz%8.2fuV%6d%9.2fuV", CpuFid,CpuDid,CpuVid,getCpuMultiplier(CpuFid, CpuDid),getClockSpeed(CpuFid, CpuDid),CpuVolt,NbVid,vidTomV(NbVid));
 	if (idd) {
 		int IddDiv = getDec(IDD_DIV_BITS);
 		switch (IddDiv) {
@@ -377,16 +377,20 @@ void getReg(const uint32_t reg) {
 	close(fh);
 }
 
-int getCpuMultiplier(const int CpuFid, const int CpuDid) {
+float getCpuMultiplier(const int CpuFid, const int CpuDid) {
+	float FidInc;
 	switch (cpuFamily) {
 		case AMD10H:
 		case AMD15H:
 		case AMD16H:
-			return ((CpuFid + 0x10) / (2 ^ CpuDid));
+			FidInc = (CpuFid + 0x10);
+			return (FidInc / (2 << CpuDid));
 		case AMD11H:
-			return ((CpuFid + 0x08) / (2 ^ CpuDid));
+			FidInc = (CpuFid + 0x08);
+			return (FidInc / (2 << CpuDid));
 		case AMD12H:
-			return ((CpuFid + 0x10) / CpuDid);
+			FidInc = (CpuFid + 0x10);
+			return (FidInc / CpuDid);
 		default:
 			return 0;
 	}
