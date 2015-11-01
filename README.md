@@ -14,6 +14,8 @@ Other CPU families's should work, see the [Supported CPU Families](https://githu
 
 ###Usage:###
 
+Make the binary executable `chmod +x amdctl`.
+
 Run the program for a list of options, you can type `./amdctl` to run it.
 
 ###Compilation:###
@@ -37,7 +39,7 @@ The program will check if your CPU is supported when run.
 
 AMD CPU family 9h(K9) and earlier.
 
-AMD 13h, I could find any info on this, so I assume this CPU family does not exist.
+AMD 13h, I could not find any info on this, so I assume this CPU family does not exist.
 
 AMD 14h(Bobcat) family, these have a different way of calculating clock speed, without a CPU to test I won't attempt to support them.
 
