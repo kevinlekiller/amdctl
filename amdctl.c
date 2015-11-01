@@ -353,7 +353,8 @@ void printBaseFmt(const int idd) {
 				printf("\n");
 				return;
 		}
-		int cpuCurrDraw = abs(getDec(IDD_VALUE_BITS) / IddDiv);
+		int IddVal = getDec(IDD_VALUE_BITS);
+		int cpuCurrDraw = (IddVal > IddDiv ? IddVal / IddDiv : IddDiv / IddVal);
 		printf("%8dA%9.2fW", cpuCurrDraw, ((cpuCurrDraw * CpuVolt) / 1000));
 	}
 	printf("\n");
@@ -445,11 +446,7 @@ int getDec(const char *loc) {
 		temp >>= low;
 		temp &= (1ULL << bits) - 1;
 	}
-	if (temp & (1ULL << (bits - 1))) {
-		temp &= ~(1ULL << (temp - 1));
-		temp = -temp;
-	}
-	return abs(temp);
+	return temp;
 }
 
 // Ported from k10ctl
