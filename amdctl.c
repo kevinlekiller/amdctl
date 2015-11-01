@@ -37,6 +37,7 @@ void getCpuInfo();
 void checkFamily();
 void error(const char *);
 void usage();
+void fieldDescriptions();
 
 #define PSTATE_CURRENT_LIMIT 0xc0010061
 #define PSTATE_STATUS        0xc0010063
@@ -80,7 +81,7 @@ int main(int argc, char **argv) {
 	checkFamily();
 
 	int low = -1, high = -1, nv = -1, cv = -1, c, opts = 0, did = -1, fid = -1, currentOnly = 0, uVolt;
-	while ((c = getopt(argc, argv, "eghitc:d:f:l:m:n:p:u:v:")) != -1) {
+	while ((c = getopt(argc, argv, "eghitxc:d:f:l:m:n:p:u:v:")) != -1) {
 		opts = 1;
 		switch (c) {
 			case 'c':
@@ -151,6 +152,8 @@ int main(int argc, char **argv) {
 			case 't':
 				testMode = 1;
 				break;
+			case 'x':
+				fieldDescriptions();
 			case '?':
 			case 'h':
 			default:
@@ -199,7 +202,10 @@ int main(int argc, char **argv) {
 		int i, minPstate = getDec(PSTATE_MAX_VAL_BITS) + 1, maxPstate = getDec(CUR_PSTATE_LIMIT_BITS) + 1;
 		getReg(PSTATE_STATUS);
 		printf("\nCore %d | P-State Limits (non-turbo): Highest: %d ; Lowest %d | Current P-State: %d\n", core, maxPstate, minPstate, getDec(CUR_PSTATE_BITS) + 1);
-		printf("%7s%7s%7s%8s%9s%11s%10s%6s%11s%9s%10s\n", "Pstate","CpuFid","CpuDid","CpuVid","CpuMult","CpuFreq","CpuVolt","NbVid","NbVolt","CpuCurr","CpuPower");
+		printf(
+				"%7s%7s%7s%8s%9s%11s%10s%6s%11s%7s%7s%9s%10s\n",
+				"Pstate","CpuFid","CpuDid","CpuVid","CpuMult","CpuFreq","CpuVolt","NbVid","NbVolt","IddVal","IddDiv","CpuCurr","CpuPower"
+		);
 		if (!currentOnly) {
 			for (i = 0; i < pstates_count; i++) {
 				printf("%7d", (pstate >= 0 ? pstate : i));
@@ -316,6 +322,7 @@ void usage() {
 	printf("    -u    Try to find voltage id by voltage (millivolts).\n");
 	printf("    -i    Show debug info.\n");
 	printf("    -h    Shows this information.\n");
+	printf("    -x    Explains field name descriptions.\n");
 	printf("Notes:\n");
 	printf("    1 volt = 1000 millivolts.\n");
 	printf("    All P-States are assumed if -p is not set.\n");
@@ -327,6 +334,24 @@ void usage() {
 	exit(EXIT_SUCCESS);
 }
 
+void fieldDescriptions() {
+	printf("Core:        Cpu core.\n");
+	printf("P-State:     Power state, lower number means higher performance, 'current' means the P-State the CPU is in currently.\n");
+	printf("CpuFid:      Core frequency ID, with the CpuDid, this is used to calculate the core clock speed.\n");
+	printf("CpuDid:      Core divisor ID, see CpuFid.\n");
+	printf("CpuVid:      Core voltage ID, used to calculate the core voltage. (lower numbers mean higher voltage).\n");
+	printf("CpuMult:     Core multiplier.\n");
+	printf("CpuFreq:     Core clock speed, in megahertz.\n");
+	printf("CpuVolt:     Core voltage, in millivolts.\n");
+	printf("NbVid:       North bridge voltage ID.\n");
+	printf("NbVolt:      North bridge voltage, in millivolts.\n");
+	printf("IddVal:      Core current (intensity) ID. Used to calculate cpu current draw and power draw.\n");
+	printf("IddDiv       Core current (intensity) dividor (IddVal / IddDiv = current draw).");
+	printf("CpuCurr:     The cpu current draw, in amps.\n");
+	printf("CpuPower:    The cpu power draw, in watts.\n");
+	exit(EXIT_SUCCESS);
+}
+
 void printBaseFmt(const int idd) {
 	const int CpuVid = getDec(CPU_VID_BITS);
 	const int CpuDid = getDec(CPU_DID_BITS);
@@ -335,7 +360,7 @@ void printBaseFmt(const int idd) {
 	const double CpuVolt = vidTomV(CpuVid);
 	printf("%7d%7d%8d%8.2fx%8dMHz%8.2fuV%6d%9.2fuV", CpuFid,CpuDid,CpuVid,getCpuMultiplier(CpuFid, CpuDid),getClockSpeed(CpuFid, CpuDid),CpuVolt,NbVid,vidTomV(NbVid));
 	if (idd) {
-		int IddDiv = getDec(IDD_DIV_BITS);
+		int IddDiv = getDec(IDD_DIV_BITS), IddVal = getDec(IDD_VALUE_BITS);
 		switch (IddDiv) {
 			case 0:
 				IddDiv = 1;
@@ -351,8 +376,8 @@ void printBaseFmt(const int idd) {
 				printf("\n");
 				return;
 		}
-		int cpuCurrDraw = (getDec(IDD_VALUE_BITS) / IddDiv);
-		printf("%8dA%9.2fW", cpuCurrDraw, ((cpuCurrDraw * CpuVolt) / 1000));
+		int cpuCurrDraw = (IddVal / IddDiv);
+		printf("%7d,%7d%8dA%9.2fW", IddVal, IddDiv, cpuCurrDraw, ((cpuCurrDraw * CpuVolt) / 1000));
 	}
 	printf("\n");
 }
