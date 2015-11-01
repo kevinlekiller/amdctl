@@ -1,2 +1,5 @@
 .directory
 *.out
+*.orig
+
+/.idea/

@@ -26,10 +26,10 @@
 void printBaseFmt(const int);
 int getDec(const char *);
 void getReg(const uint32_t);
-void updateBuffer(const char *, uint64_t);
+void updateBuffer(const char *, int);
 void setReg(const uint32_t);
 void getVidType();
-float vidTomV(const int);
+double vidTomV(const int);
 float getCpuMultiplier(const int, const int);
 int getClockSpeed(const int, const int);
 int mVToVid(float);
@@ -72,8 +72,8 @@ static char *CPU_DID_BITS = "8:6";
 static char *CPU_FID_BITS = "5:0";
 
 static uint64_t buffer;
-static int PSTATES = 8, DIDS = 5, cpuFamily = 0, cpuModel = 0, cores = 0, pvi = 0, debug = 0,
-minMaxVid = 0, testMode = 0, core = -1, pstate = -1;
+static int PSTATES = 8, DIDS = 5, cpuFamily = 0, cpuModel = 0, cores = 0,
+		pvi = 0, debug = 0, testMode = 0, core = -1, pstate = -1;
 
 int main(int argc, char **argv) {
 	getCpuInfo();
@@ -281,12 +281,10 @@ void checkFamily() {
 			break;
 		case AMD15H:
 			if (cpuModel > 0x0f) {
-				minMaxVid = 0;
 				NB_VID_BITS = "31:24";
 			}
 			break;
 		case AMD16H:
-			minMaxVid = 0;
 			NB_VID_BITS = "31:24";
 			break;
 		case AMD13H:
@@ -334,21 +332,21 @@ void printBaseFmt(const int idd) {
 	const int CpuDid = getDec(CPU_DID_BITS);
 	const int CpuFid = getDec(CPU_FID_BITS);
 	const int NbVid  = getDec(NB_VID_BITS);
-	const float CpuVolt = vidTomV(CpuVid);
+	const double CpuVolt = vidTomV(CpuVid);
 	printf("%7d%7d%8d%8.2fx%8dMHz%8.2fuV%6d%9.2fuV", CpuFid,CpuDid,CpuVid,getCpuMultiplier(CpuFid, CpuDid),getClockSpeed(CpuFid, CpuDid),CpuVolt,NbVid,vidTomV(NbVid));
 	if (idd) {
 		int IddDiv = getDec(IDD_DIV_BITS);
 		switch (IddDiv) {
-			case 0b00:
+			case 0:
 				IddDiv = 1;
 				break;
-			case 0b01:
+			case 1:
 				IddDiv = 10;
 				break;
-			case 0b10:
+			case 2:
 				IddDiv = 100;
 				break;
-			case 0b11:
+			case 3:
 			default:
 				printf("\n");
 				return;
@@ -430,30 +428,31 @@ void setReg(const uint32_t reg) {
 	}
 }
 
-void updateBuffer(const char *loc, uint64_t replacement) {
-	uint64_t low, high;
+void updateBuffer(const char *loc, int replacement) {
+	int low, high;
 
-	sscanf(loc, "%lu:%lu", &high, &low);
-	if (replacement > 0 && replacement < (2 << (high - low))) {
+	sscanf(loc, "%d:%d", &high, &low);
+	if (replacement < (2 << (high - low))) {
 		buffer = (buffer & ((1 << low) - (2 << high) - 1)) | (replacement << low);
 	}
 }
 
 int getDec(const char *loc) {
-	uint64_t temp = buffer, high, low, bits;
+	uint64_t temp = buffer;
+	int high, low, bits;
 
 	// From msr-tools.
-	sscanf(loc, "%lu:%lu", &high, &low);
+	sscanf(loc, "%d:%d", &high, &low);
 	bits = high - low + 1;
 	if (bits < 64) {
 		temp >>= low;
 		temp &= (1ULL << bits) - 1;
 	}
-	return temp;
+	return (int)temp;
 }
 
 // Ported from k10ctl
-float vidTomV(const int vid) {
+double vidTomV(const int vid) {
 	if (pvi) {
 		if (vid < MIN_VID) {
 			return (MAX_VOLTAGE - vid * VID_DIVIDOR1);
