@@ -26,7 +26,8 @@
 void printBaseFmt(const int);
 int getDec(const char *);
 void getReg(const uint32_t);
-void setReg(const uint32_t, const char *, uint64_t);
+void updateBuffer(const char *, uint64_t);
+void setReg(const uint32_t);
 void getVidType();
 float vidTomV(const int);
 int getCpuMultiplier(const int, const int);
@@ -186,13 +187,14 @@ int main(int argc, char **argv) {
 
 	for (; core < cores; core++) {
 		printf("CPU Core %d\n", core);
+		getReg(PSTATE_CURRENT_LIMIT);
 		if (low > -1) {
-			setReg(PSTATE_CURRENT_LIMIT, PSTATE_MAX_VAL_BITS, low);
+			updateBuffer(PSTATE_MAX_VAL_BITS, low);
 		}
 		if (high > -1) {
-			setReg(PSTATE_CURRENT_LIMIT, CUR_PSTATE_LIMIT_BITS, high);
+			updateBuffer(CUR_PSTATE_LIMIT_BITS, high);
 		}
-		getReg(PSTATE_CURRENT_LIMIT);
+		setReg(PSTATE_CURRENT_LIMIT);
 		puts("\tP-State Limits (non-turbo):");
 		int i, minPstate = getDec(PSTATE_MAX_VAL_BITS) + 1;
 		printf("\t\tHighest                 %d\n", getDec(CUR_PSTATE_LIMIT_BITS) + 1);
@@ -200,19 +202,20 @@ int main(int argc, char **argv) {
 		if (!currentOnly) {
 			for (i = 0; i < pstates_count; i++) {
 				printf("\tP-State: %d\n", (pstate >= 0 ? pstate : i));
+				getReg(tmp_pstates[i]);
 				if (nv > -1) {
-					setReg(tmp_pstates[i], NB_VID_BITS, nv);
+					updateBuffer(NB_VID_BITS, nv);
 				}
 				if (cv > -1) {
-					setReg(tmp_pstates[i], CPU_VID_BITS, cv);
+					updateBuffer(CPU_VID_BITS, cv);
 				}
 				if (fid > -1) {
-					setReg(tmp_pstates[i], CPU_FID_BITS, fid);
+					updateBuffer(CPU_FID_BITS, fid);
 				}
 				if (did > -1) {
-					setReg(tmp_pstates[i], CPU_DID_BITS, did);
+					updateBuffer(CPU_DID_BITS, did);
 				}
-				getReg(tmp_pstates[i]);
+				setReg(tmp_pstates[i]);
 				printBaseFmt(1);
 				if (i >= minPstate) {
 					break;
@@ -411,33 +414,17 @@ int getClockSpeed(const int CpuFid, const int CpuDid) {
 	}
 }
 
-void setReg(const uint32_t reg, const char *loc, uint64_t replacement) {
-	if (debug) { printf("DEBUG: Setting data %lu at register %x, location %s for CPU %d\n", replacement, reg, loc, core); }
-	int fh;
-	char path[32];
-	uint64_t low, high;
-
-	sscanf(loc, "%lu:%lu", &high, &low);
-	if (low > high) {
-		uint64_t temp = low;
-		low = high;
-		high = temp;
-	}
-
-	getReg(reg);
-	if (replacement > 0 && replacement < (2 << (high - low))) {
-		buffer = (buffer & ((1 << low) - (2 << high) - 1)) | (replacement << low);
-	} else {
-		return;
-	}
-
+void setReg(const uint32_t reg) {
 	if (!testMode && writeReg) {
+		int fh;
+		char path[32];
+
 		sprintf(path, "/dev/cpu/%d/msr", core);
 		fh = open(path, O_WRONLY);
 		if (fh < 0) {
 			error("Could not open CPU for writing! Is the msr kernel module loaded?");
 		}
-
+		
 		if (pwrite(fh, &buffer, sizeof buffer, reg) != sizeof buffer) {
 			close(fh);
 			error("Could write new value to CPU!");
@@ -446,12 +433,20 @@ void setReg(const uint32_t reg, const char *loc, uint64_t replacement) {
 	}
 }
 
+void updateBuffer(const char *loc, uint64_t replacement) {
+	uint64_t low, high;
+
+	sscanf(loc, "%lu:%lu", &high, &low);
+	if (replacement > 0 && replacement < (2 << (high - low))) {
+		buffer = (buffer & ((1 << low) - (2 << high) - 1)) | (replacement << low);
+	}
+}
+
 int getDec(const char *loc) {
-	int high, low, bits;
-	uint64_t temp = buffer;
+	uint64_t temp = buffer, high, low, bits;
 
 	// From msr-tools.
-	sscanf(loc, "%d:%d", &high, &low);
+	sscanf(loc, "%lu:%lu", &high, &low);
 	bits = high - low + 1;
 	if (bits < 64) {
 		temp >>= low;
@@ -476,11 +471,9 @@ float vidTomV(const int vid) {
 }
 
 int mVToVid(float mV) {
-	int maxVid = MAX_VID;
-	int i;
-	float tmpv;
-	float volt = MAX_VOLTAGE;
-	float mult = VID_DIVIDOR2;
+	int maxVid = MAX_VID, i;
+	float tmpv, volt = MAX_VOLTAGE, mult = VID_DIVIDOR2;
+
 	if (pvi) {
 		if (mV > MID_VOLTAGE) {
 			mult = VID_DIVIDOR1;
@@ -489,8 +482,7 @@ int mVToVid(float mV) {
 			volt = MID_VOLTAGE;
 		}
 	}
-	float min = (mV - (mult / 2));
-	float max = (mV + (mult / 2));
+	float min = (mV - (mult / 2)), max = (mV + (mult / 2));
 	for (i = 1; i <= maxVid; i++) {
 		tmpv = volt - i * mult;
 		if (tmpv >= min && tmpv <= max) {
