@@ -53,7 +53,7 @@ void fieldDescriptions();
 #define AMD16H 0x16 // Jaguar
 #define AMD17H 0x17 // Zen
 
-#define PSTATE_EN_BITS        "63"
+#define PSTATE_EN_BITS        "63:63"
 #define PSTATE_MAX_VAL_BITS   "6:4"
 #define CUR_PSTATE_LIMIT_BITS "2:0"
 #define CUR_PSTATE_BITS       "2:0"
@@ -475,13 +475,9 @@ void setReg(const uint32_t reg) {
 void updateBuffer(const char *loc, int replacement) {
 	int low, high;
 
-	if (sscanf(loc, "%d:%d", &high, &low) == 2) {
-		if (replacement < (2 << (high - low))) {
-			buffer = (buffer & ((1 << low) - (2 << high) - 1)) | (replacement << low);
-		}
-	} else {
-		sscanf(loc, "%d", &high);
-		buffer |= replacement << high;
+	sscanf(loc, "%d:%d", &high, &low);
+	if (replacement < (2 << (high - low))) {
+		buffer = (buffer & ((1 << low) - (2 << high) - 1)) | (replacement << low);
 	}
 }
 
@@ -490,17 +486,13 @@ int getDec(const char *loc) {
 	int high, low, bits;
 
 	// From msr-tools.
-	if (sscanf(loc, "%d:%d", &high, &low) == 2) {
-		bits = high - low + 1;
-		if (bits < 64) {
-			temp >>= low;
-			temp &= (1ULL << bits) - 1;
-		}
-		return (int) temp;
-	} else {
-		sscanf(loc, "%d", &high);
-		return (int) ((temp >> high) & 1);
+	sscanf(loc, "%d:%d", &high, &low);
+	bits = high - low + 1;
+	if (bits < 64) {
+		temp >>= low;
+		temp &= (1ULL << bits) - 1;
 	}
+	return (int)temp;
 }
 
 // Ported from k10ctl
