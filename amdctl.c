@@ -73,7 +73,7 @@ static char *CPU_FID_BITS = "5:0";
 
 static uint64_t buffer;
 static int PSTATES = 8, DIDS = 5, cpuFamily = 0, cpuModel = 0, cores = 0, pvi = 0, debug = 0,
-minMaxVid = 0, testMode = 0, core = -1, pstate = -1, writeReg = 1;
+minMaxVid = 0, testMode = 0, core = -1, pstate = -1;
 
 int main(int argc, char **argv) {
 	getCpuInfo();
@@ -196,9 +196,9 @@ int main(int argc, char **argv) {
 			}
 			setReg(PSTATE_CURRENT_LIMIT);
 		}
+		int i, minPstate = getDec(PSTATE_MAX_VAL_BITS) + 1, maxPstate = getDec(CUR_PSTATE_LIMIT_BITS) + 1;
 		getReg(PSTATE_STATUS);
-		int i, minPstate = getDec(PSTATE_MAX_VAL_BITS) + 1;
-		printf("Core %d | P-State Limits (non-turbo): Highest: %d ; Lowest %d | Current P-State: %d\n", core, getDec(CUR_PSTATE_LIMIT_BITS) + 1, minPstate, getDec(CUR_PSTATE_BITS) + 1);
+		printf("Core %d | P-State Limits (non-turbo): Highest: %d ; Lowest %d | Current P-State: %d\n", core, maxPstate, minPstate, getDec(CUR_PSTATE_BITS) + 1);
 		printf("%7s%7s%7s%8s%9s%11s%10s%6s%11s%9s%10s\n", "Pstate","CpuFid","CpuDid","CpuFid","CpuMult","CpuFreq","CpuVolt","NbVid","NbVolt","CpuCurr","CpuPower");
 		if (!currentOnly) {
 			for (i = 0; i < pstates_count; i++) {
@@ -408,7 +408,7 @@ int getClockSpeed(const int CpuFid, const int CpuDid) {
 }
 
 void setReg(const uint32_t reg) {
-	if (!testMode && writeReg) {
+	if (!testMode) {
 		int fh;
 		char path[32];
 
