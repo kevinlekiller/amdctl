@@ -476,8 +476,12 @@ void updateBuffer(const char *loc, int replacement) {
 	int low, high;
 
 	sscanf(loc, "%d:%d", &high, &low);
-	if (replacement < (2 << (high - low))) {
-		buffer = (buffer & ((1 << low) - (2 << high) - 1)) | (replacement << low);
+	if (high == low) {
+		buffer ^= (-replacement ^ buffer) & (1 << high);
+	} else {
+		if (replacement < (2 << (high - low))) {
+			buffer = (buffer & ((1 << low) - (2 << high) - 1)) | (replacement << low);
+		}
 	}
 }
 
@@ -487,12 +491,16 @@ int getDec(const char *loc) {
 
 	// From msr-tools.
 	sscanf(loc, "%d:%d", &high, &low);
-	bits = high - low + 1;
-	if (bits < 64) {
-		temp >>= low;
-		temp &= (1ULL << bits) - 1;
+	if (high == low) {
+		return ((temp >> high)  & 0x01);
+	} else {
+		bits = high - low + 1;
+		if (bits < 64) {
+			temp >>= low;
+			temp &= (1ULL << bits) - 1;
+		}
+		return (int) temp;
 	}
-	return (int)temp;
 }
 
 // Ported from k10ctl
