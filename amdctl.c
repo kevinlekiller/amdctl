@@ -199,10 +199,10 @@ int main(int argc, char **argv) {
 		getReg(PSTATE_STATUS);
 		int i, minPstate = getDec(PSTATE_MAX_VAL_BITS) + 1;
 		printf("Core %d | P-State Limits (non-turbo): Highest: %d ; Lowest %d | Current P-State: %d\n", core, getDec(CUR_PSTATE_LIMIT_BITS) + 1, minPstate, getDec(CUR_PSTATE_BITS) + 1);
-		printf("%7s%7s%7s%8s%8s%8s%8s%6s%7s%8s%9s\n", "Pstate","CpuFid","CpuDid","CpuFid","CpuMult","CpuFreq","CpuVolt","NbVid","NbVolt","CpuCurr","CpuPower");
+		printf("%7s%7s%7s%8s%9s%11s%10s%6s%11s%9s%10s\n", "Pstate","CpuFid","CpuDid","CpuFid","CpuMult","CpuFreq","CpuVolt","NbVid","NbVolt","CpuCurr","CpuPower");
 		if (!currentOnly) {
 			for (i = 0; i < pstates_count; i++) {
-				printf("%6d", (pstate >= 0 ? pstate : i));
+				printf("%7d", (pstate >= 0 ? pstate : i));
 				getReg(tmp_pstates[i]);
 				if (nv > -1 || cv > -1 || fid > -1 || did > -1) {
 					if (nv > -1) {
@@ -335,7 +335,7 @@ void printBaseFmt(const int idd) {
 	const int CpuFid = getDec(CPU_FID_BITS);
 	const int NbVid  = getDec(NB_VID_BITS);
 	const float CpuVolt = vidTomV(CpuVid);
-	printf("%7d%7d%8d%8dx%8dMHz%8.2fuV%6d%7.2fuV", CpuFid,CpuDid,CpuVid,getCpuMultiplier(CpuFid, CpuDid),getClockSpeed(CpuFid, CpuDid),CpuVolt,NbVid,vidTomV(NbVid));
+	printf("%7d%7d%8d%8dx%8dMHz%8.2fuV%6d%9.2fuV", CpuFid,CpuDid,CpuVid,getCpuMultiplier(CpuFid, CpuDid),getClockSpeed(CpuFid, CpuDid),CpuVolt,NbVid,vidTomV(NbVid));
 	if (idd) {
 		int IddDiv = getDec(IDD_DIV_BITS);
 		switch (IddDiv) {
