@@ -29,7 +29,7 @@ void updateBuffer(const char *, const int);
 void setReg(const uint32_t);
 void getVidType();
 double vidTomV(const int);
-float get12hDiv(const int);
+float getDiv(const int);
 float getCpuMultiplier(const int, const int);
 int getClockSpeed(const int, const int);
 int mVToVid(const float);
@@ -437,33 +437,9 @@ float getCpuMultiplier(const int CpuFid, const int CpuDid) {
 			return (FidInc / (2 << CpuDid));
 		case AMD12H:
 			FidInc = (CpuFid + 0x10);
-			return (FidInc / get12hDiv(CpuDid));
+			return (FidInc / getDiv(CpuDid));
 		default:
 			return 0;
-	}
-}
-
-float get12hDiv(const int CpuDid) {
-	switch(CpuDid) {
-		case 1:
-			return 1.5;
-		case 2:
-			return 2;
-		case 3:
-			return 3;
-		case 4:
-			return 4;
-		case 5:
-			return 6;
-		case 6:
-			return 8;
-		case 7:
-			return 12;
-		case 8:
-			return 16;
-		case 0:
-		default:
-			return 1;
 	}
 }
 
@@ -474,11 +450,62 @@ int getClockSpeed(const int CpuFid, const int CpuDid) {
 		case AMD16H:
 			return ((100 * (CpuFid + 0x10)) >> CpuDid);
 		case AMD11H:
-			return ((100 * (CpuFid + 0x08)) / (2 ^ CpuDid));
+			return ((100 * (CpuFid + 0x08)) >> CpuDid);
 		case AMD12H:
-			return (int) (100* (CpuFid + 0x10) / get12hDiv(CpuDid));
+			return (int) (100* (CpuFid + 0x10) / getDiv(CpuDid));
 		default:
 			return 0;
+	}
+}
+
+float getDiv(const int CpuDid) {
+	switch (cpuFamily) {
+		case AMD11H:
+			switch (CpuDid) {
+				case 1:
+					return 2;
+				case 2:
+					return 4;
+				case 3:
+					return 8;
+				default:
+					return 1;
+			}
+		case AMD12H:
+			switch (CpuDid) {
+				case 1:
+					return 1.5;
+				case 2:
+					return 2;
+				case 3:
+					return 3;
+				case 4:
+					return 4;
+				case 5:
+					return 6;
+				case 6:
+					return 8;
+				case 7:
+					return 12;
+				case 8:
+					return 16;
+				case 0:
+				default:
+					return 1;
+			}
+		default:
+			switch (CpuDid) {
+				case 1:
+					return 2;
+				case 2:
+					return 4;
+				case 3:
+					return 8;
+				case 4:
+					return 16;
+				default:
+					return 1;
+			}
 	}
 }
 
