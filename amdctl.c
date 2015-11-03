@@ -294,8 +294,8 @@ void checkFamily() {
 			break;
 		case AMD12H:
 			DIDS = 8;
-			CPU_DID_BITS = "8:4";
-			CPU_FID_BITS = "3:0";
+			CPU_DID_BITS = "3:0";
+			CPU_FID_BITS = "8:4";
 			break;
 		case AMD15H:
 			if (cpuModel > 0x0f) {
