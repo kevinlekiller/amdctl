@@ -9,9 +9,6 @@ This software can damage your hardware, use at your own risk.
 
 Tool for changing voltages and clock speeds for AMD processors with control over every power state and CPU core.
 
-Currently I've only tested on a 10h CPU, I will be getting a 15h CPU to test shorty.  
-Other CPU families's should work, see the [Supported CPU Families](https://github.com/kevinlekiller/amdctl#supported-cpu-families), I've read the BKDG manuals for all the supported CPU families and adjusted the code accordingly.
-
 ###Usage:###
 
 Make the binary executable `chmod +x amdctl`.
