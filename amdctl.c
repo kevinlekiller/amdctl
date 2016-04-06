@@ -113,6 +113,9 @@ int main(int argc, char **argv) {
 				}
 				break;
 			case 'n':
+				if (cpuFamily != AMD10H) {
+					error("Currently amdctl can only change the NB vid on 10h CPU's.");
+				}
 				nv = atoi(optarg);
 				if (nv < 0 || nv > 124) {
 					error("Option -n must be between 0 and 124.");
@@ -206,11 +209,19 @@ int main(int argc, char **argv) {
 		if (!quiet) {
 			printf("\nCore %d | P-State Limits (non-turbo): Highest: %d ; Lowest %d | Current P-State: %d\n", core,
 				   maxPstate, minPstate, getDec(CUR_PSTATE_BITS) + 1);
-			printf(
-					"%7s%7s%7s%7s%7s%8s%8s%8s%6s%7s%7s%7s%8s%9s\n",
-					"Pstate", "Status", "CpuFid", "CpuDid", "CpuVid", "CpuMult", "CpuFreq", "CpuVolt", "NbVid",
-					"NbVolt", "IddVal", "IddDiv", "CpuCurr", "CpuPower"
-			);
+			if (cpuFamily == AMD10H) {
+				printf(
+						"%7s%7s%7s%7s%7s%8s%8s%8s%6s%7s%7s%7s%8s%9s\n",
+						"Pstate", "Status", "CpuFid", "CpuDid", "CpuVid", "CpuMult", "CpuFreq", "CpuVolt", "NbVid",
+						"NbVolt", "IddVal", "IddDiv", "CpuCurr", "CpuPower"
+				);
+			} else {
+				printf(
+						"%7s%7s%7s%7s%7s%8s%8s%8s%7s%7s%8s%9s\n",
+						"Pstate", "Status", "CpuFid", "CpuDid", "CpuVid", "CpuMult", "CpuFreq", "CpuVolt",
+						"IddVal", "IddDiv", "CpuCurr", "CpuPower"
+				);
+			}
 		}
 		if (!currentOnly) {
 			for (i = 0; i < pstates_count; i++) {
@@ -325,7 +336,9 @@ void usage() {
 	printf("    -c    CPU core to work on.\n");
 	printf("    -p    P-state to work on.\n");
 	printf("    -v    Set CPU voltage id (vid).\n");
-	printf("    -n    Set north bridge voltage id (vid).\n");
+	if (cpuFamily == AMD10H) {
+		printf("    -n    Set north bridge voltage id (vid).\n");
+	}
 	printf("    -d    Set the CPU divisor id (did).\n");
 	printf("    -f    Set the CPU frequency id (fid).\n");
 	printf("    -a    Activate (1) or deactivate (0) P-state.\n");
@@ -371,11 +384,19 @@ void printBaseFmt(const int idd) {
 	const int NbVid  = getDec(NB_VID_BITS), status = (idd ? getDec(PSTATE_EN_BITS) : 1);
 	const double CpuVolt = vidTomV(CpuVid);
 	if (!quiet) {
-		printf(
-				"%7d%7d%7d%7d%7.2fx%5dMHz%6.0fuV%6d%5.0fuV",
-				status, CpuFid, CpuDid, CpuVid, getCpuMultiplier(CpuFid, CpuDid), getClockSpeed(CpuFid, CpuDid),
-				CpuVolt, NbVid, vidTomV(NbVid)
-		);
+		if (cpuFamily == AMD10H) {
+			printf(
+					"%7d%7d%7d%7d%7.2fx%5dMHz%6.0fuV%6d%5.0fuV",
+					status, CpuFid, CpuDid, CpuVid, getCpuMultiplier(CpuFid, CpuDid),
+					getClockSpeed(CpuFid, CpuDid), CpuVolt, NbVid, vidTomV(NbVid)
+			);
+		} else {
+			printf(
+					"%7d%7d%7d%7d%7.2fx%5dMHz%6.0fuV",
+					status, CpuFid, CpuDid, CpuVid, getCpuMultiplier(CpuFid, CpuDid),
+					getClockSpeed(CpuFid, CpuDid), CpuVolt
+			);
+		}
 	}
 	if (idd) {
 		int IddDiv = getDec(IDD_DIV_BITS), IddVal = getDec(IDD_VALUE_BITS);
