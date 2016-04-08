@@ -86,7 +86,7 @@ int main(int argc, char **argv) {
 	getCpuInfo();
 	checkFamily();
 
-	int nv = -1, cv = -1, c, opts = 0, did = -1, fid = -1, currentOnly = 0, togglePs = -1, uVolt;
+	int nv = -1, cv = -1, c, opts = 0, did = -1, fid = -1, currentOnly = 0, togglePs = -1, mVolt;
 	while ((c = getopt(argc, argv, "eghistxa:c:d:f:l:m:n:p:u:v:")) != -1) {
 		opts = 1;
 		switch (c) {
@@ -135,12 +135,17 @@ int main(int argc, char **argv) {
 				}
 				break;
 			case 'u':
-				uVolt = atoi(optarg);
-				if (uVolt < 1 || uVolt > MAX_VOLTAGE) {
+				mVolt = atoi(optarg);
+				if (mVolt < 1 || mVolt > MAX_VOLTAGE) {
 					error("Option -n must be between 1 and 1550.");
 				}
 				if (!quiet) {
-					printf("Found vid %d for for %dmV.\n", mVToVid(uVolt), uVolt);
+					int foundVid =  mVToVid(mVolt);
+					if (foundVid == -1) {
+						printf("Could not find a vid for %dmV.\n", mVolt);
+						exit(EXIT_SUCCESS);
+					}
+					printf("Found vid %d for for %dmV.\n", foundVid, mVolt);
 				}
 				exit(EXIT_SUCCESS);
 			case 'v':
@@ -282,11 +287,11 @@ void northBridge(const int nvid) {
 			//Pstate 0 = D18F3xDC
 			getAddr("18.3", 0xdc);
 			nbvid = getDec("18:12");
-			printf("Northbridge:\nP-State 0: %d (vid), %5.0fuV\n", nbvid, vidTomV(nbvid));
+			printf("Northbridge:\nP-State 0: %d (vid), %5.0fmV\n", nbvid, vidTomV(nbvid));
 			//Pstate 1 = D18F6x90
 			getAddr("18.6", 0x90);
 			nbvid = getDec("14:8");
-			printf("P-State 1: %d (vid), %5.0fuV\n", nbvid, vidTomV(nbvid));
+			printf("P-State 1: %d (vid), %5.0fmV\n", nbvid, vidTomV(nbvid));
 			break;
 		case AMD15H:
 			if (cpuModel >= 0x30 && cpuModel <= 0x3f) {
@@ -299,7 +304,7 @@ void northBridge(const int nvid) {
 					nbfid = getDec("7:7");
 					nbdid = getDec("6:1");
 					printf(
-							"P-State %d: %d (vid), %5.0fuV, %1.0fMHz\n",
+							"P-State %d: %d (vid), %5.0fmV, %1.0fMHz\n",
 							nbpstate,
 							nbvid,
 							vidTomV(nbvid),
@@ -437,13 +442,13 @@ void printBaseFmt(const int idd) {
 	if (!quiet) {
 		if (cpuFamily == AMD10H) {
 			printf(
-					"%7d%7d%7d%7d%7.2fx%5dMHz%6.0fuV%6d%5.0fuV",
+					"%7d%7d%7d%7d%7.2fx%5dMHz%6.0fmV%6d%5.0fmV",
 					status, CpuFid, CpuDid, CpuVid, getCpuMultiplier(CpuFid, CpuDid),
 					getClockSpeed(CpuFid, CpuDid), CpuVolt, NbVid, vidTomV(NbVid)
 			);
 		} else {
 			printf(
-					"%7d%7d%7d%7d%7.2fx%5dMHz%6.0fuV",
+					"%7d%7d%7d%7d%7.2fx%5dMHz%6.0fmV",
 					status, CpuFid, CpuDid, CpuVid, getCpuMultiplier(CpuFid, CpuDid),
 					getClockSpeed(CpuFid, CpuDid), CpuVolt
 			);
@@ -676,27 +681,13 @@ double vidTomV(const int vid) {
 }
 
 int mVToVid(const float mV) {
-	int maxVid = MAX_VID, i;
-	float tmpv, volt = MAX_VOLTAGE, mult = VID_DIVIDOR2, min, max;
-
-	if (pvi) {
-		if (mV > MID_VOLTAGE) {
-			mult = VID_DIVIDOR1;
-		} else {
-			maxVid = MID_VID;
-			volt = MID_VOLTAGE;
+	int tmpvid;
+	for (tmpvid = 0; tmpvid <= MAX_VID; tmpvid++) {
+		if (vidTomV(tmpvid) == mV) {
+			break;
 		}
 	}
-	min = (mV - (mult / 2));
-	max = (mV + (mult / 2));
-	for (i = 1; i <= maxVid; i++) {
-		tmpv = volt - i * mult;
-		if (tmpv >= min && tmpv <= max) {
-			if (debug && !quiet) { printf("Found vid %d for voltage %.2f\n", i, tmpv); }
-			return i;
-		}
-	}
-	return 0;
+	return (vidTomV(tmpvid) == mV ? tmpvid : -1);
 }
 
 // Ported from k10ctl
