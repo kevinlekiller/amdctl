@@ -26,6 +26,7 @@
 void printBaseFmt(const int);
 int getDec(const char *);
 void getReg(const uint32_t);
+void getAddr(const char *, const uint32_t);
 void updateBuffer(const char *, const int);
 void setReg(const uint32_t);
 void getVidType();
@@ -442,6 +443,26 @@ void getReg(const uint32_t reg) {
 	if (pread(fh, &buffer, 8, reg) != sizeof buffer) {
 		close(fh);
 		error("Could not read data from CPU!");
+	}
+	close(fh);
+}
+
+void getAddr(const char * loc, const uint32_t reg) {
+	char path[64];
+	int fh;
+
+	sprintf(path, "/proc/bus/pci/00/%s", loc);
+
+	if (debug && !quiet) { printf("DEBUG: Getting data from PCI config space address %x at location %s\n", reg, path); }
+
+	fh = open(path, O_RDONLY);
+	if (fh < 0) {
+		error("Could not open PCI config space for reading!");
+	}
+
+	if (pread(fh, &buffer, 8, reg) != sizeof buffer) {
+		close(fh);
+		error("Could not read data from PCI config space!");
 	}
 	close(fh);
 }
