@@ -21,10 +21,12 @@
 #include <stdlib.h>
 #include <inttypes.h>
 #include <string.h>
+#include <math.h>
 
 void printBaseFmt(const int);
 int getDec(const char *);
 void getReg(const uint32_t);
+void getAddr(const char *, const uint32_t);
 void updateBuffer(const char *, const int);
 void setReg(const uint32_t);
 void getVidType();
@@ -38,6 +40,7 @@ void checkFamily();
 void error(const char *);
 void usage();
 void fieldDescriptions();
+void northBridge(const int);
 
 #define PSTATE_CURRENT_LIMIT 0xc0010061
 #define PSTATE_STATUS        0xc0010063
@@ -68,6 +71,8 @@ void fieldDescriptions();
 #define MIN_VID      32
 #define VID_DIVIDOR1 25
 #define VID_DIVIDOR2 12.5
+#define VID_DIVIDOR3 6.25
+#define REFCLK       100
 
 static char *NB_VID_BITS  = "31:25";
 static char *CPU_DID_BITS = "8:6";
@@ -81,7 +86,7 @@ int main(int argc, char **argv) {
 	getCpuInfo();
 	checkFamily();
 
-	int nv = -1, cv = -1, c, opts = 0, did = -1, fid = -1, currentOnly = 0, togglePs = -1, uVolt;
+	int nv = -1, cv = -1, c, opts = 0, did = -1, fid = -1, currentOnly = 0, togglePs = -1, mVolt;
 	while ((c = getopt(argc, argv, "eghistxa:c:d:f:l:m:n:p:u:v:")) != -1) {
 		opts = 1;
 		switch (c) {
@@ -117,7 +122,7 @@ int main(int argc, char **argv) {
 					error("Currently amdctl can only change the NB vid on 10h CPU's.");
 				}
 				nv = atoi(optarg);
-				if (nv < 0 || nv > 124) {
+				if (nv < 0 || nv > MAX_VID) {
 					error("Option -n must be between 0 and 124.");
 				}
 				break;
@@ -130,17 +135,22 @@ int main(int argc, char **argv) {
 				}
 				break;
 			case 'u':
-				uVolt = atoi(optarg);
-				if (uVolt < 1 || uVolt > 1550) {
+				mVolt = atoi(optarg);
+				if (mVolt < 1 || mVolt > MAX_VOLTAGE) {
 					error("Option -n must be between 1 and 1550.");
 				}
 				if (!quiet) {
-					printf("Found vid %d for for %dmV.\n", mVToVid(uVolt), uVolt);
+					int foundVid =  mVToVid(mVolt);
+					if (foundVid == -1) {
+						printf("Could not find a vid for %dmV.\n", mVolt);
+						exit(EXIT_SUCCESS);
+					}
+					printf("Found vid %d for for %dmV.\n", foundVid, mVolt);
 				}
 				exit(EXIT_SUCCESS);
 			case 'v':
 				cv = atoi(optarg);
-				if (cv < 0 || cv > 124) {
+				if (cv < 0 || cv > MAX_VID) {
 					error("Option -v must be between 0 and 124.");
 				}
 				break;
@@ -260,7 +270,53 @@ int main(int argc, char **argv) {
 		printBaseFmt(0);
 	}
 
+	northBridge(nv);
+
 	return EXIT_SUCCESS;
+}
+
+void northBridge(const int nvid) {
+	if (nvid > -1) {
+		return;
+	}
+	int nbvid, nbfid, nbdid;
+	switch (cpuFamily) {
+		case AMD10H:
+			break;
+		case AMD12H:
+			//Pstate 0 = D18F3xDC
+			getAddr("18.3", 0xdc);
+			nbvid = getDec("18:12");
+			printf("Northbridge:\nP-State 0: %d (vid), %5.0fmV\n", nbvid, vidTomV(nbvid));
+			//Pstate 1 = D18F6x90
+			getAddr("18.6", 0x90);
+			nbvid = getDec("14:8");
+			printf("P-State 1: %d (vid), %5.0fmV\n", nbvid, vidTomV(nbvid));
+			break;
+		case AMD15H:
+			if (cpuModel >= 0x30 && cpuModel <= 0x3f) {
+				printf("Northbridge:\n");
+				//4 pstates D18F5x164 to D18F5x16C
+				const uint32_t addresses[][4] = {{0x160, 0x164, 0x168, 0x16c}};
+				for (int nbpstate = 0; nbpstate < 4; nbpstate++) {
+					getAddr("18.5", addresses[0][nbpstate]);
+					nbvid = ((getDec("16:10") + (getDec("21:21") << 7)));
+					nbfid = getDec("7:7");
+					nbdid = getDec("6:1");
+					printf(
+							"P-State %d: %d (vid), %5.0fmV, %1.0fMHz\n",
+							nbpstate,
+							nbvid,
+							vidTomV(nbvid),
+							(REFCLK * (nbdid + 0x4) / pow(2, nbfid))
+					);
+				}
+				return;
+			}
+			break;
+		default:
+			break;
+	}
 }
 
 void getCpuInfo() {
@@ -386,13 +442,13 @@ void printBaseFmt(const int idd) {
 	if (!quiet) {
 		if (cpuFamily == AMD10H) {
 			printf(
-					"%7d%7d%7d%7d%7.2fx%5dMHz%6.0fuV%6d%5.0fuV",
+					"%7d%7d%7d%7d%7.2fx%5dMHz%6.0fmV%6d%5.0fmV",
 					status, CpuFid, CpuDid, CpuVid, getCpuMultiplier(CpuFid, CpuDid),
 					getClockSpeed(CpuFid, CpuDid), CpuVolt, NbVid, vidTomV(NbVid)
 			);
 		} else {
 			printf(
-					"%7d%7d%7d%7d%7.2fx%5dMHz%6.0fuV",
+					"%7d%7d%7d%7d%7.2fx%5dMHz%6.0fmV",
 					status, CpuFid, CpuDid, CpuVid, getCpuMultiplier(CpuFid, CpuDid),
 					getClockSpeed(CpuFid, CpuDid), CpuVolt
 			);
@@ -445,6 +501,26 @@ void getReg(const uint32_t reg) {
 	close(fh);
 }
 
+void getAddr(const char * loc, const uint32_t reg) {
+	char path[64];
+	int fh;
+
+	sprintf(path, "/proc/bus/pci/00/%s", loc);
+
+	if (debug && !quiet) { printf("DEBUG: Getting data from PCI config space address %x at location %s\n", reg, path); }
+
+	fh = open(path, O_RDONLY);
+	if (fh < 0) {
+		error("Could not open PCI config space for reading!");
+	}
+
+	if (pread(fh, &buffer, 8, reg) != sizeof buffer) {
+		close(fh);
+		error("Could not read data from PCI config space!");
+	}
+	close(fh);
+}
+
 float getCpuMultiplier(const int CpuFid, const int CpuDid) {
 	float FidInc;
 	switch (cpuFamily) {
@@ -469,11 +545,11 @@ int getClockSpeed(const int CpuFid, const int CpuDid) {
 		case AMD10H:
 		case AMD15H:
 		case AMD16H:
-			return ((100 * (CpuFid + 0x10)) >> CpuDid);
+			return ((REFCLK * (CpuFid + 0x10)) >> CpuDid);
 		case AMD11H:
-			return ((100 * (CpuFid + 0x08)) >> CpuDid);
+			return ((REFCLK * (CpuFid + 0x08)) >> CpuDid);
 		case AMD12H:
-			return (int) (100* (CpuFid + 0x10) / getDiv(CpuDid));
+			return (int) (REFCLK * (CpuFid + 0x10) / getDiv(CpuDid));
 		default:
 			return 0;
 	}
@@ -584,39 +660,34 @@ int getDec(const char *loc) {
 	}
 }
 
-// Ported from k10ctl
+// Ported from k10ctl & AmdMsrTweaker
 double vidTomV(const int vid) {
-	if (pvi) {
-		if (vid < MIN_VID) {
-			return (MAX_VOLTAGE - vid * VID_DIVIDOR1);
+	if (cpuFamily == AMD10H) {
+		if (pvi) {
+			if (vid < MIN_VID) {
+				return (MAX_VOLTAGE - vid * VID_DIVIDOR1);
+			}
+			return (MID_VOLTAGE - (vid > MID_VID ? MID_VID : vid) * VID_DIVIDOR2);
 		}
-		return (MID_VOLTAGE - (vid > MID_VID ? MID_VID : vid) * VID_DIVIDOR2);
+		return (MAX_VOLTAGE - (vid > MAX_VID ? MAX_VID : vid) * VID_DIVIDOR2);
 	}
-	return (MAX_VOLTAGE - (vid > MAX_VID ? MAX_VID : vid) * VID_DIVIDOR2);
+
+	// https://github.com/mpollice/AmdMsrTweaker/blob/master/Info.cpp#L47
+	if (cpuFamily == AMD15H && ((cpuModel > 0x0f && cpuModel < 0x20) || (cpuModel > 0x2f && cpuModel < 0x40))) {
+		return (MAX_VOLTAGE - (vid * VID_DIVIDOR3));
+	}
+
+	return (MAX_VOLTAGE - (vid * VID_DIVIDOR2));
 }
 
 int mVToVid(const float mV) {
-	int maxVid = MAX_VID, i;
-	float tmpv, volt = MAX_VOLTAGE, mult = VID_DIVIDOR2, min, max;
-
-	if (pvi) {
-		if (mV > MID_VOLTAGE) {
-			mult = VID_DIVIDOR1;
-		} else {
-			maxVid = MID_VID;
-			volt = MID_VOLTAGE;
+	int tmpvid;
+	for (tmpvid = 0; tmpvid <= MAX_VID; tmpvid++) {
+		if (vidTomV(tmpvid) == mV) {
+			break;
 		}
 	}
-	min = (mV - (mult / 2));
-	max = (mV + (mult / 2));
-	for (i = 1; i <= maxVid; i++) {
-		tmpv = volt - i * mult;
-		if (tmpv >= min && tmpv <= max) {
-			if (debug && !quiet) { printf("Found vid %d for voltage %.2f\n", i, tmpv); }
-			return i;
-		}
-	}
-	return 0;
+	return (vidTomV(tmpvid) == mV ? tmpvid : -1);
 }
 
 // Ported from k10ctl
