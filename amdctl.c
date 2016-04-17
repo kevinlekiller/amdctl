@@ -72,8 +72,8 @@ void northBridge(const int);
 #define VID_DIVIDOR1 25
 #define VID_DIVIDOR2 12.5
 #define VID_DIVIDOR3 6.25
-#define REFCLK       100
 
+static int  REFCLK        = 100;
 static char *NB_VID_BITS  = "31:25";
 static char *CPU_DID_BITS = "8:6";
 static char *CPU_FID_BITS = "5:0";
@@ -118,8 +118,8 @@ int main(int argc, char **argv) {
 				}
 				break;
 			case 'n':
-				if (cpuFamily != AMD10H) {
-					error("Currently amdctl can only change the NB vid on 10h CPU's.");
+				if (cpuFamily > AMD11H) {
+					error("Currently amdctl can only change the NB vid on 10h and 11h CPU's.");
 				}
 				nv = atoi(optarg);
 				if (nv < 0 || nv > MAX_VID) {
@@ -219,7 +219,7 @@ int main(int argc, char **argv) {
 		if (!quiet) {
 			printf("\nCore %d | P-State Limits (non-turbo): Highest: %d ; Lowest %d | Current P-State: %d\n", core,
 				   maxPstate, minPstate, getDec(CUR_PSTATE_BITS) + 1);
-			if (cpuFamily == AMD10H) {
+			if (cpuFamily == AMD10H || cpuFamily == AMD11H) {
 				printf(
 						"%7s%7s%7s%7s%7s%8s%8s%8s%6s%7s%7s%7s%8s%9s\n",
 						"Pstate", "Status", "CpuFid", "CpuDid", "CpuVid", "CpuMult", "CpuFreq", "CpuVolt", "NbVid",
@@ -279,39 +279,50 @@ void northBridge(const int nvid) {
 	if (nvid > -1) {
 		return;
 	}
-	int nbvid, nbfid, nbdid;
+	int nbvid, nbfid, nbdid, nbpstates;
+	const uint32_t addresses[][4] = {{0x160, 0x164, 0x168, 0x16c}};
+	printf("Northbridge:\n");
 	switch (cpuFamily) {
 		case AMD10H:
+		case AMD11H:
+			// These are in the CPU P-states.
 			break;
 		case AMD12H:
 			//Pstate 0 = D18F3xDC
 			getAddr("18.3", 0xdc);
 			nbvid = getDec("18:12");
-			printf("Northbridge:\nP-State 0: %d (vid), %5.0fmV\n", nbvid, vidTomV(nbvid));
+			printf("P-State 0: %d (vid), %5.0fmV\n", nbvid, vidTomV(nbvid));
 			//Pstate 1 = D18F6x90
 			getAddr("18.6", 0x90);
 			nbvid = getDec("14:8");
 			printf("P-State 1: %d (vid), %5.0fmV\n", nbvid, vidTomV(nbvid));
 			break;
 		case AMD15H:
-			if (cpuModel >= 0x30 && cpuModel <= 0x3f) {
-				printf("Northbridge:\n");
-				//4 pstates D18F5x164 to D18F5x16C
-				const uint32_t addresses[][4] = {{0x160, 0x164, 0x168, 0x16c}};
-				for (int nbpstate = 0; nbpstate < 4; nbpstate++) {
-					getAddr("18.5", addresses[0][nbpstate]);
-					nbvid = ((getDec("16:10") + (getDec("21:21") << 7)));
-					nbfid = getDec("7:7");
-					nbdid = getDec("6:1");
-					printf(
-							"P-State %d: %d (vid), %5.0fmV, %1.0fMHz\n",
-							nbpstate,
-							nbvid,
-							vidTomV(nbvid),
-							(REFCLK * (nbdid + 0x4) / pow(2, nbfid))
-					);
-				}
+		case AMD16H:
+			//2 pstates: D18F5x160 and D18F5x164
+			if (cpuFamily == AMD15H && (cpuModel >= 0x00 && cpuModel <= 0x0f)) {
+				nbpstates = 2;
+			}
+			//4 pstates: D18F5x160, D18F5x164, D18F5x168 and D18F5x16C
+			else if ((cpuFamily == AMD15H && ((cpuModel >= 0x10 && cpuModel <= 0x1f)  || (cpuModel >= 0x30 && cpuModel <= 0x3f) || (cpuModel >= 0x60 && cpuModel <= 0x6f))) ||
+					(cpuFamily == AMD16H && ((cpuModel >= 0x00 && cpuModel <= 0x0f) || (cpuModel >= 0x30 && cpuModel <= 0x3f)))
+			) {
+				nbpstates = 4;
+			} else {
 				return;
+			}
+			for (int nbpstate = 0; nbpstate < nbpstates; nbpstate++) {
+				getAddr("18.5", addresses[0][nbpstate]);
+				nbvid = ((getDec("16:10") + (getDec("21:21") << 7)));
+				nbfid = getDec("7:7");
+				nbdid = getDec("6:1");
+				printf(
+						"P-State %d: %d (vid), %5.0fmV, %1.0fMHz\n",
+						nbpstate,
+						nbvid,
+						vidTomV(nbvid),
+						(REFCLK * (nbdid + 0x4) / pow(2, nbfid))
+				);
 			}
 			break;
 		default:
@@ -368,6 +379,9 @@ void checkFamily() {
 		case AMD15H:
 			if (cpuModel > 0x0f) {
 				NB_VID_BITS = "31:24";
+			}
+			if (cpuModel >= 0x00 && cpuModel <= 0x0f) {
+				REFCLK = 200;
 			}
 			break;
 		case AMD16H:
@@ -437,10 +451,11 @@ void fieldDescriptions() {
 
 void printBaseFmt(const int idd) {
 	const int CpuVid = getDec(CPU_VID_BITS), CpuDid = getDec(CPU_DID_BITS), CpuFid = getDec(CPU_FID_BITS);
-	const int NbVid  = getDec(NB_VID_BITS), status = (idd ? getDec(PSTATE_EN_BITS) : 1);
+	const int status = (idd ? getDec(PSTATE_EN_BITS) : 1);
 	const double CpuVolt = vidTomV(CpuVid);
 	if (!quiet) {
-		if (cpuFamily == AMD10H) {
+		if (cpuFamily == AMD10H || cpuFamily == AMD11H) {
+			const int NbVid = getDec(NB_VID_BITS);
 			printf(
 					"%7d%7d%7d%7d%7.2fx%5dMHz%6.0fmV%6d%5.0fmV",
 					status, CpuFid, CpuDid, CpuVid, getCpuMultiplier(CpuFid, CpuDid),
