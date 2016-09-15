@@ -79,7 +79,7 @@ static char *CPU_DID_BITS = "8:6";
 static char *CPU_FID_BITS = "5:0";
 
 static uint64_t buffer;
-static int PSTATES = 8, DIDS = 5, cpuFamily = 0, cpuModel = 0, cores = 0,
+static int PSTATES = 8, DIDS = 5, cpuFamily = 0, cpuModel = -1, cores = 0,
 		pvi = 0, debug = 0, quiet = 0, testMode = 0, core = -1, pstate = -1;
 
 int main(int argc, char **argv) {
@@ -356,7 +356,7 @@ void getCpuInfo() {
 	}
 
 	fclose(fp);
-	if (!cpuModel || !cpuFamily || !cores) {
+	if (cpuModel == -1 || !cpuFamily || !cores) {
 		error("Could not find CPU family or model!");
 	}
 }
