@@ -17,8 +17,6 @@ Run the program for a list of options, you can type `./amdctl` to run it.
 
 ### Compilation:
 
-A pre-compiled binary is included.
-
 You can compile with the program `make`.
 
 ### Supported CPU Families:
