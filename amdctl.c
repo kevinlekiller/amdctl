@@ -60,9 +60,6 @@ void northBridge(const int);
 #define PSTATE_MAX_VAL_BITS   "6:4"
 #define CUR_PSTATE_LIMIT_BITS "2:0"
 #define CUR_PSTATE_BITS       "2:0"
-#define IDD_DIV_BITS          "41:40"
-#define IDD_VALUE_BITS        "39:32"
-#define CPU_VID_BITS          "15:9"
 
 #define MAX_VOLTAGE  1550
 #define MID_VOLTAGE  1162.5
@@ -73,10 +70,14 @@ void northBridge(const int);
 #define VID_DIVIDOR2 12.5
 #define VID_DIVIDOR3 6.25
 
-static int  REFCLK        = 100;
-static char *NB_VID_BITS  = "31:25";
-static char *CPU_DID_BITS = "8:6";
-static char *CPU_FID_BITS = "5:0";
+static int  REFCLK          = 100;
+static char *NB_VID_BITS    = "31:25";
+static char *CPU_DID_BITS   = "8:6";
+static char *CPU_FID_BITS   = "5:0";
+static char *CPU_VID_BITS   = "15:9";
+static char *IDD_DIV_BITS   = "41:40";
+static char *IDD_VALUE_BITS = "39:32";
+
 
 static uint64_t buffer;
 static int PSTATES = 8, DIDS = 5, cpuFamily = 0, cpuModel = -1, cores = 0,
@@ -238,6 +239,7 @@ int main(int argc, char **argv) {
 				if (!quiet) {
 					printf("%7d", (pstate >= 0 ? pstate : i));
 				}
+				
 				getReg(tmp_pstates[i]);
 				if (nv > -1 || cv > -1 || fid > -1 || did > -1 || togglePs > -1) {
 					if (togglePs > -1) {
@@ -263,11 +265,13 @@ int main(int argc, char **argv) {
 				}
 			}
 		}
-		if (!quiet) {
-			printf("%7s", "current");
+		if (cpuFamily != AMD17H) {
+			if (!quiet) {
+				printf("%7s", "current");
+			}
+			getReg(COFVID_STATUS);
+			printBaseFmt(0);
 		}
-		getReg(COFVID_STATUS);
-		printBaseFmt(0);
 	}
 
 	northBridge(nv);
@@ -324,6 +328,9 @@ void northBridge(const int nvid) {
 						(REFCLK * (nbdid + 0x4) / pow(2, nbfid))
 				);
 			}
+			break;
+		case AMD17H:
+			printf("No P-States on AMD17H Northbridge.\n");
 			break;
 		default:
 			break;
@@ -387,9 +394,15 @@ void checkFamily() {
 		case AMD16H:
 			NB_VID_BITS = "31:24";
 			break;
+		case AMD17H:
+			CPU_VID_BITS = "21:14";
+			CPU_DID_BITS = "13:8";
+			CPU_FID_BITS = "7:0";
+			IDD_DIV_BITS = "31:30";
+			IDD_VALUE_BITS = "29:22";
+			break;
 		case AMD13H:
 		case AMD14H: // Disabled due to differences in cpu vid / did / fid
-		case AMD17H: // Disabled because no BKDG currently.
 		default:
 			error("Your CPU family is unsupported by amdctl.");
 	}
@@ -450,10 +463,14 @@ void fieldDescriptions() {
 }
 
 void printBaseFmt(const int idd) {
-	const int CpuVid = getDec(CPU_VID_BITS), CpuDid = getDec(CPU_DID_BITS), CpuFid = getDec(CPU_FID_BITS);
 	const int status = (idd ? getDec(PSTATE_EN_BITS) : 1);
+	const int CpuVid = getDec(CPU_VID_BITS), CpuDid = getDec(CPU_DID_BITS), CpuFid = getDec(CPU_FID_BITS);
 	const double CpuVolt = vidTomV(CpuVid);
 	if (!quiet) {
+		if (cpuFamily == AMD17H && !CpuVid) {
+			printf("      disabled\n");
+			return;
+		}
 		if (cpuFamily == AMD10H || cpuFamily == AMD11H) {
 			const int NbVid = getDec(NB_VID_BITS);
 			printf(
@@ -488,7 +505,7 @@ void printBaseFmt(const int idd) {
 				}
 				return;
 		}
-		float cpuCurrDraw = ((float)IddVal / IddDiv);
+		float cpuCurrDraw = cpuFamily == AMD17H ? IddVal + IddDiv :((float)IddVal / IddDiv);
 		if (!quiet) {
 			printf("%7d%7d%7.2fA%8.2fW", IddVal, IddDiv, cpuCurrDraw, ((cpuCurrDraw * CpuVolt) / 1000));
 		}
@@ -550,6 +567,8 @@ float getCpuMultiplier(const int CpuFid, const int CpuDid) {
 		case AMD12H:
 			FidInc = (CpuFid + 0x10);
 			return (FidInc / getDiv(CpuDid));
+		case AMD17H:
+			return (CpuFid * VID_DIVIDOR1) / (CpuDid * VID_DIVIDOR2);
 		default:
 			return 0;
 	}
@@ -565,6 +584,8 @@ int getClockSpeed(const int CpuFid, const int CpuDid) {
 			return ((REFCLK * (CpuFid + 0x08)) >> CpuDid);
 		case AMD12H:
 			return (int) (REFCLK * (CpuFid + 0x10) / getDiv(CpuDid));
+		case AMD17H:
+			return CpuFid && CpuDid ? (int) ((CpuFid / CpuDid) * REFCLK * 2) : 0;
 		default:
 			return 0;
 	}
@@ -688,7 +709,7 @@ double vidTomV(const int vid) {
 	}
 
 	// https://github.com/mpollice/AmdMsrTweaker/blob/master/Info.cpp#L47
-	if (cpuFamily == AMD15H && ((cpuModel > 0x0f && cpuModel < 0x20) || (cpuModel > 0x2f && cpuModel < 0x40))) {
+	if (cpuFamily == AMD17H || (cpuFamily == AMD15H && ((cpuModel > 0x0f && cpuModel < 0x20) || (cpuModel > 0x2f && cpuModel < 0x40)))) {
 		return (MAX_VOLTAGE - (vid * VID_DIVIDOR3));
 	}
 
