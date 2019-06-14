@@ -9,15 +9,25 @@ This software can damage your hardware, use at your own risk.
 
 Tool for changing voltages and clock speeds for AMD processors with control over every power state and CPU core.
 
+### Compilation:
+
+You can compile with the program `make`.
+
 ### Usage:
 
 Make the binary executable `chmod +x amdctl`.
 
 Run the program for a list of options, you can type `./amdctl` to run it.
 
-### Compilation:
+### Undervolting: 
 
-You can compile with the program `make`.
+Undervolting is done by **increasing** the value of the CpuVid field for a specific P-state.
+
+This can be done by invoking 'sudo /path/to/amdctl -p**P** -v**V**' in console, where **P** is the P-state of which the CpuVid you want to change and **V** is the value you want the CpuVid field to have.
+
+For example, 'sudo /path/to/amdctl -p**1** -v**25**' will change the value of the CpuVid field of P-state #**1** to **25**.
+
+This applies the undervolt to all cores. You can specify a core by using the `-c` flag.
 
 ### Supported CPU Families:
 
