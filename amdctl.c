@@ -366,6 +366,14 @@ void getCpuInfo() {
 	if (cpuModel == -1 || !cpuFamily || !cores) {
 		error("Could not find CPU family or model!");
 	}
+	
+	// dual cpu or quad cpu motherboard patch.
+	int testcores=(int)sysconf(_SC_NPROCESSORS_CONF);
+	if(testcores>cores){
+		printf("Multi-CPU motherboard detected: CPU has %d cores, but there is a total %d cores in %d CPU sockets\n", cores, testcores, testcores/cores);
+		cores=testcores;
+	}
+	
 }
 
 void checkFamily() {
