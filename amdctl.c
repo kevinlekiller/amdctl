@@ -14,6 +14,9 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+
+#pragma GCC diagnostic ignored "-Wwrite-strings"
+
 #define _XOPEN_SOURCE 500
 #include <stdio.h>
 #include <fcntl.h>
@@ -22,6 +25,11 @@
 #include <inttypes.h>
 #include <string.h>
 #include <math.h>
+
+#include <linux/version.h>
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,9,0)
+	#warning Incompatible kernel! MSR access deprecated by your Linux kernel! To use this program, you must set GRUB_CMDLINE_LINUX="msr.allow_writes=on" kernel parameter in the file /etc/default/grub and run upgrade-grub. 
+#endif
 
 void printBaseFmt(const int);
 int getDec(const char *);
