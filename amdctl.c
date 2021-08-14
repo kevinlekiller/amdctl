@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2015  kevinlekiller
+ * Copyright (C) 2015-2021  kevinlekiller
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -122,8 +122,12 @@ int main(int argc, char **argv) {
 				break;
 			case 'f':
 				fid = atoi(optarg);
-				if (fid > 0x2f || fid < 0) {
-					error("Option -f must be a number 0 to 47");
+				int maxFid = cpuFamily == AMD17H ? 0xc0 : 0x2f;
+				if (fid > maxFid || fid < 0) {
+					if (!quiet) {
+						fprintf(stderr, "Option -f must be a number 0 to %d", maxFid);
+					}
+					exit(EXIT_FAILURE);
 				}
 				break;
 			case 'n':
@@ -601,7 +605,7 @@ int getClockSpeed(const int CpuFid, const int CpuDid) {
 		case AMD12H:
 			return (int) (REFCLK * (CpuFid + 0x10) / getDiv(CpuDid));
 		case AMD17H:
-			return CpuFid && CpuDid ? (int) ((CpuFid / CpuDid) * REFCLK * 2) : 0;
+			return CpuFid && CpuDid ? (int) (((float)CpuFid / (float)CpuDid) * REFCLK * 2) : 0;
 		default:
 			return 0;
 	}
