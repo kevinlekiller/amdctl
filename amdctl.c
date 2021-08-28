@@ -28,7 +28,7 @@
 
 #include <linux/version.h>
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5,9,0)
-	#warning Incompatible kernel! MSR access deprecated by your Linux kernel! To use this program, you must set GRUB_CMDLINE_LINUX="msr.allow_writes=on" kernel parameter in the file /etc/default/grub and run upgrade-grub. 
+	#warning Incompatible kernel! MSR access deprecated by your Linux kernel! To use this program, set the kernel parameter "msr.allow_writes=on" or set "/sys/module/msr/parameters/allow_writes" to "on" at runtime.
 #endif
 
 void printBaseFmt(const int);
