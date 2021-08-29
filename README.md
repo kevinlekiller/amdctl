@@ -19,6 +19,8 @@ Make the binary executable `chmod +x amdctl`.
 
 Run the program for a list of options, you can type `./amdctl` to run it.
 
+`./amdctl -x` to get a description of the various words used in the program.
+
 ### Undervolting: 
 
 Undervolting is done by **increasing** the value of the CpuVid field for a specific P-state.
