@@ -15,8 +15,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#pragma GCC diagnostic ignored "-Wwrite-strings"
-
 #define _XOPEN_SOURCE 500
 #include <stdio.h>
 #include <fcntl.h>
@@ -28,7 +26,7 @@
 
 #include <linux/version.h>
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5,9,0)
-	#warning Incompatible kernel! MSR access deprecated by your Linux kernel! To use this program, set the kernel parameter "msr.allow_writes=on" or set "/sys/module/msr/parameters/allow_writes" to "on" at runtime.
+	#pragma GCC warning "Incompatible kernel! MSR access deprecated by your Linux kernel! To use this program, set the kernel parameter msr.allow_writes=on or set /sys/module/msr/parameters/allow_writes to on at runtime."
 #endif
 
 void printBaseFmt(const int);
@@ -62,7 +60,8 @@ void northBridge(const int);
 #define AMD14H 0x14 // Bobcat
 #define AMD15H 0x15 // Bulldozer
 #define AMD16H 0x16 // Jaguar
-#define AMD17H 0x17 // Zen
+#define AMD17H 0x17 // Zen Zen+ Zen2
+#define AMD19H 0x19 // Zen3
 
 #define PSTATE_EN_BITS        "63:63"
 #define PSTATE_MAX_VAL_BITS   "6:4"
@@ -122,7 +121,16 @@ int main(int argc, char **argv) {
 				break;
 			case 'f':
 				fid = atoi(optarg);
-				int maxFid = cpuFamily == AMD17H ? 0xc0 : 0x2f;
+				int maxFid;
+				switch (cpuFamily) {
+					case AMD17H:
+					case AMD19H:
+						maxFid = 0xc0;
+						break;
+					default:
+						maxFid = 0x2f;
+						break;
+				}
 				if (fid > maxFid || fid < 0) {
 					if (!quiet) {
 						fprintf(stderr, "Option -f must be a number 0 to %d", maxFid);
@@ -228,10 +236,15 @@ int main(int argc, char **argv) {
 	for (; core < cores; core++) {
 		getReg(PSTATE_CURRENT_LIMIT);
 		int i, curPstate = getDec(CUR_PSTATE_BITS), minPstate = getDec(PSTATE_MAX_VAL_BITS), maxPstate = getDec(CUR_PSTATE_LIMIT_BITS);
-		if (cpuFamily != AMD17H) {
-			curPstate++;
-			minPstate++;
-			maxPstate++;
+		switch (cpuFamily) {
+			case AMD17H:
+			case AMD19H:
+				break;
+			default:
+				curPstate++;
+				minPstate++;
+				maxPstate++;
+				break;
 		}
 		getReg(PSTATE_STATUS);
 		if (!quiet) {
@@ -282,12 +295,17 @@ int main(int argc, char **argv) {
 				}
 			}
 		}
-		if (cpuFamily != AMD17H) {
-			if (!quiet) {
-				printf("%7s", "current");
-			}
-			getReg(COFVID_STATUS);
-			printBaseFmt(0);
+		switch (cpuFamily) {
+			case AMD17H:
+			case AMD19H:
+				break;
+			default:
+				if (!quiet) {
+					printf("%7s", "current");
+				}
+				getReg(COFVID_STATUS);
+				printBaseFmt(0);
+				break;
 		}
 	}
 
@@ -347,7 +365,8 @@ void northBridge(const int nvid) {
 			}
 			break;
 		case AMD17H:
-			printf("No P-States on AMD17H Northbridge.\n");
+		case AMD19H:
+			printf("No P-States on Zen Northbridge.\n");
 			break;
 		default:
 			break;
@@ -420,6 +439,7 @@ void checkFamily() {
 			NB_VID_BITS = "31:24";
 			break;
 		case AMD17H:
+		case AMD19H:
 			CPU_VID_BITS = "21:14";
 			CPU_DID_BITS = "13:8";
 			CPU_FID_BITS = "7:0";
@@ -436,8 +456,8 @@ void checkFamily() {
 void usage() {
 	printf("WARNING: This software can damage your CPU, use with caution.\n");
 	printf("Tool for under/over clocking/volting AMD CPU's.\n");
-	printf("Supported AMD CPU families: 10h,11h,12h,15h,16h,17h\n");
-	printf("These AMD CPU families are unsupported: 13h,14h,19h, anything older than 10h or newer than 19h\n");
+	printf("Supported AMD CPU families: 10h,11h,12h,15h,16h,17h,19h\n");
+	printf("These AMD CPU families are unsupported: 13h,14h, anything older than 10h or newer than 19h\n");
 	printf("Usage:\n");
 	printf("amdctl [options]\n");
 	printf("    -g    Get P-State information.\n");
@@ -492,7 +512,7 @@ void printBaseFmt(const int idd) {
 	const int CpuVid = getDec(CPU_VID_BITS), CpuDid = getDec(CPU_DID_BITS), CpuFid = getDec(CPU_FID_BITS);
 	const double CpuVolt = vidTomV(CpuVid);
 	if (!quiet) {
-		if (cpuFamily == AMD17H && !CpuVid) {
+		if ((cpuFamily == AMD17H || cpuFamily == AMD19H) && !CpuVid) {
 			printf("      disabled\n");
 			return;
 		}
@@ -530,7 +550,7 @@ void printBaseFmt(const int idd) {
 				}
 				return;
 		}
-		float cpuCurrDraw = cpuFamily == AMD17H ? IddVal + IddDiv :((float)IddVal / IddDiv);
+		float cpuCurrDraw = (cpuFamily == AMD17H || cpuFamily == AMD19H) ? IddVal + IddDiv : ((float) IddVal / (float) IddDiv);
 		if (!quiet) {
 			printf("%7d%7d%7.2fA%8.2fW", IddVal, IddDiv, cpuCurrDraw, ((cpuCurrDraw * CpuVolt) / 1000));
 		}
@@ -593,6 +613,7 @@ float getCpuMultiplier(const int CpuFid, const int CpuDid) {
 			FidInc = (CpuFid + 0x10);
 			return (FidInc / getDiv(CpuDid));
 		case AMD17H:
+		case AMD19H:
 			return (CpuFid * VID_DIVIDOR1) / (CpuDid * VID_DIVIDOR2);
 		default:
 			return 0;
@@ -610,6 +631,7 @@ int getClockSpeed(const int CpuFid, const int CpuDid) {
 		case AMD12H:
 			return (int) (REFCLK * (CpuFid + 0x10) / getDiv(CpuDid));
 		case AMD17H:
+		case AMD19H:
 			return CpuFid && CpuDid ? (int) (((float)CpuFid / (float)CpuDid) * REFCLK * 2) : 0;
 		default:
 			return 0;
@@ -734,7 +756,7 @@ double vidTomV(const int vid) {
 	}
 
 	// https://github.com/mpollice/AmdMsrTweaker/blob/master/Info.cpp#L47
-	if (cpuFamily == AMD17H || (cpuFamily == AMD15H && ((cpuModel > 0x0f && cpuModel < 0x20) || (cpuModel > 0x2f && cpuModel < 0x40)))) {
+	if (cpuFamily == AMD17H || cpuFamily == AMD19H || (cpuFamily == AMD15H && ((cpuModel > 0x0f && cpuModel < 0x20) || (cpuModel > 0x2f && cpuModel < 0x40)))) {
 		return (MAX_VOLTAGE - (vid * VID_DIVIDOR3));
 	}
 
