@@ -1,16 +1,16 @@
 /**
  * Copyright (C) 2015-2021  kevinlekiller
- * 
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
@@ -227,11 +227,16 @@ int main(int argc, char **argv) {
 
 	for (; core < cores; core++) {
 		getReg(PSTATE_CURRENT_LIMIT);
-		int i, minPstate = getDec(PSTATE_MAX_VAL_BITS) + 1, maxPstate = getDec(CUR_PSTATE_LIMIT_BITS) + 1;
+		int i, curPstate = getDec(CUR_PSTATE_BITS), minPstate = getDec(PSTATE_MAX_VAL_BITS), maxPstate = getDec(CUR_PSTATE_LIMIT_BITS);
+		if (cpuFamily != AMD17H) {
+			curPstate++;
+			minPstate++;
+			maxPstate++;
+		}
 		getReg(PSTATE_STATUS);
 		if (!quiet) {
 			printf("\nCore %d | P-State Limits (non-turbo): Highest: %d ; Lowest %d | Current P-State: %d\n", core,
-				   maxPstate, minPstate, getDec(CUR_PSTATE_BITS) + 1);
+				   maxPstate, minPstate, curPstate);
 			if (cpuFamily == AMD10H || cpuFamily == AMD11H) {
 				printf(
 						"%7s%7s%7s%7s%7s%8s%8s%8s%6s%7s%7s%7s%8s%9s\n",
@@ -251,7 +256,7 @@ int main(int argc, char **argv) {
 				if (!quiet) {
 					printf("%7d", (pstate >= 0 ? pstate : i));
 				}
-				
+
 				getReg(tmp_pstates[i]);
 				if (nv > -1 || cv > -1 || fid > -1 || did > -1 || togglePs > -1) {
 					if (togglePs > -1) {
@@ -378,14 +383,14 @@ void getCpuInfo() {
 	if (cpuModel == -1 || !cpuFamily || !cores) {
 		error("Could not find CPU family or model!");
 	}
-	
+
 	// dual cpu or quad cpu motherboard patch.
 	int testcores=(int)sysconf(_SC_NPROCESSORS_CONF);
 	if(testcores>cores){
 		printf("Multi-CPU motherboard detected: CPU has %d cores, but there is a total %d cores in %d CPU sockets\n", cores, testcores, testcores/cores);
 		cores=testcores;
 	}
-	
+
 }
 
 void checkFamily() {
@@ -672,7 +677,7 @@ void setReg(const uint32_t reg) {
 		if (fh < 0) {
 			error("Could not open CPU for writing! Is the msr kernel module loaded?");
 		}
-		
+
 		if (pwrite(fh, &buffer, sizeof buffer, reg) != sizeof buffer) {
 			close(fh);
 			error("Could not write new value to CPU!");
