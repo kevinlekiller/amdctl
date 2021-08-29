@@ -62,6 +62,12 @@ To manually load the msr module: `sudo modprobe msr`
 
 To automatically load the msr module see the [arch wiki](https://wiki.archlinux.org/index.php/Kernel_modules#Automatic_module_handling).
 
+On Kernel's 5.9 and higher, userspace writes to MSR are restricted, for now (in the future this may become impossible) you can allow writing to MSR from userspace:
+
+After the kernel is loaded (runtime): `sudo bash -c "echo on > /sys/module/msr/parameters/allow_writes"`
+
+When loading the kernel: Add `msr.allow_writes=on` to kernel parameters : https://wiki.archlinux.org/title/kernel_parameters
+
 ### References:
 
 https://developer.amd.com/resources/developer-guides-manuals/  
