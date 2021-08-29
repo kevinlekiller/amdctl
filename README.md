@@ -38,7 +38,7 @@ AMD CPU family's 10h(K10), 11h(Turion), 12h(Fusion), 15h(Bulldozer), 16h(Jaguar)
 This would be most AMD CPU's between 2007 and 2021.
 
 You can find your CPU family by typing `cat /proc/cpuinfo` in a terminal, the values there are in decimal.  
-10h is equivalent to 16, 16h 22 for example.
+10h is equivalent to 16, 16h 22 for example. See https://en.wikipedia.org/wiki/List_of_AMD_CPU_microarchitectures for a table with all AMD CPU families.
 
 The program will check if your CPU is supported when run.
 
@@ -49,6 +49,8 @@ AMD CPU family 9h(K9) and earlier.
 AMD 13h, I could not find any info on this, so I assume this CPU family does not exist.
 
 AMD 14h(Bobcat) family, these have a different way of calculating clock speed, without a CPU to test I won't attempt to support them.
+
+AMD 18h(EPYC / Hygon Dhyana), no public documentation available ?
 
 Anything newer than 19h (for now).
 
