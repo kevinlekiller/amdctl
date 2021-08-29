@@ -342,7 +342,7 @@ void northBridge(const int nvid) {
 						nbpstate,
 						nbvid,
 						vidTomV(nbvid),
-						(REFCLK * (nbdid + 0x4) / pow(2, nbfid))
+						(((cpuModel >= 0x00 && cpuModel <= 0x0f) ? REFCLK * 2 : REFCLK) * (nbdid + 0x4) / pow(2, nbfid))
 				);
 			}
 			break;
