@@ -501,9 +501,12 @@ void fieldDescriptions() {
 	printf("NbVid:       North bridge voltage ID.\n");
 	printf("NbVolt:      North bridge voltage, in millivolts.\n");
 	printf("IddVal:      Core current (intensity) ID. Used to calculate cpu current draw and power draw.\n");
-	printf("IddDiv       Core current (intensity) dividor (IddVal / IddDiv = current draw).\n");
+	printf("IddDiv       Core current (intensity) dividor.\n");
 	printf("CpuCurr:     The cpu current draw, in amps.\n");
+    printf("               On 10h to 16h, the current draw is calculated as : IddVal / IddDiv\n");
+    printf("               On 17h, 19h (Zen) the current draw is calculated as : IddVal + IddDiv\n");
 	printf("CpuPower:    The cpu power draw, in watts.\n");
+    printf("               Power draw is calculated as : (CpuCurr * CpuVolt) / 1000\n");
 	exit(EXIT_SUCCESS);
 }
 
