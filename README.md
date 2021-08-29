@@ -31,11 +31,9 @@ This applies the undervolt to all cores. You can specify a core by using the `-c
 
 ### Supported CPU Families:
 
-AMD CPU family's 10h(K10), 11h(Turion), 12h(Fusion), 15h(Bulldozer), 16h(Jaguar), 17h(Zen - Untested).
+AMD CPU family's 10h(K10), 11h(Turion), 12h(Fusion), 15h(Bulldozer), 16h(Jaguar), 17h(Zen, Zen+, Zen 2), 19h(Zen 3).
 
-Note that Zen/17h has not been tested, I only modified the program based on the AMD programming reference, use with caution.
-
-This would be most AMD CPU's between 2007 and 2018.
+This would be most AMD CPU's between 2007 and 2021.
 
 You can find your CPU family by typing `cat /proc/cpuinfo` in a terminal, the values there are in decimal.  
 10h is equivalent to 16, 16h 22 for example.
@@ -50,7 +48,7 @@ AMD 13h, I could not find any info on this, so I assume this CPU family does not
 
 AMD 14h(Bobcat) family, these have a different way of calculating clock speed, without a CPU to test I won't attempt to support them.
 
-Anything newer than 17h (for now).
+Anything newer than 19h (for now).
 
 ### Requirements:
 
@@ -64,7 +62,7 @@ To automatically load the msr module see the [arch wiki](https://wiki.archlinux.
 
 ### References:
 
-https://developer.amd.com/resources/developer-guides-manuals/
+https://developer.amd.com/resources/developer-guides-manuals/  
 https://wiki.archlinux.org/index.php/K10ctl  
 http://sourceforge.net/projects/k10ctl/  
 https://web.archive.org/web/20090914081440/http://www.ztex.de/misc/k10ctl.e.html  
