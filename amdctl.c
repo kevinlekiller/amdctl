@@ -77,7 +77,7 @@ void northBridge(const int);
 #define VID_DIVIDOR2 12.5
 #define VID_DIVIDOR3 6.25
 
-static int  REFCLK          = 100;
+static const int REFCLK     = 100;  // this is considered a read-only invariant!
 static char *NB_VID_BITS    = "31:25";
 static char *CPU_DID_BITS   = "8:6";
 static char *CPU_FID_BITS   = "5:0";
@@ -209,7 +209,7 @@ int main(int argc, char **argv) {
 
 	if (!quiet) {
 		printf("Voltage ID encodings: %s\n", (pvi ? "PVI (parallel)" : "SVI (serial)"));
-		printf("Detected CPU model %xh, from family %xh with %d CPU cores.\n", cpuModel, cpuFamily, cores);
+		printf("Detected CPU model %xh, from family %xh with %d CPU cores (REFCLK = %dMHz).\n", cpuModel, cpuFamily, cores, REFCLK);
 		if (nv > -1 || cv > -1 || fid > -1 || did > -1) {
 			printf("%s\n", (testMode ? "Preview mode On - No P-State values will be changed."
 									 : "PREVIEW MODE OFF - P-STATES WILL BE CHANGED!"));
@@ -350,17 +350,26 @@ void northBridge(const int nvid) {
 			} else {
 				return;
 			}
+			// We need to be able to display the REFCLK used for the calculations
+			int _refclk = REFCLK;
+			if (cpuModel >= 0x00 && cpuModel <= 0x0f)
+			{
+				_refclk = 2 * REFCLK;
+			}
 			for (int nbpstate = 0; nbpstate < nbpstates; nbpstate++) {
 				getAddr("18.5", addresses[0][nbpstate]);
 				nbvid = ((getDec("16:10") + (getDec("21:21") << 7)));
 				nbfid = getDec("7:7");
 				nbdid = getDec("6:1");
 				printf(
-						"P-State %d: %d (vid), %5.0fmV, %1.0fMHz\n",
+						"P-State %d: %d (vid), %d (fid), %d (did), %5.0fmV, %dMHz (REFCLK = %dMHz)\n",
 						nbpstate,
 						nbvid,
+						nbfid,
+						nbdid,
 						vidTomV(nbvid),
-						(((cpuModel >= 0x00 && cpuModel <= 0x0f) ? REFCLK * 2 : REFCLK) * (nbdid + 0x4) / pow(2, nbfid))
+						(_refclk * (nbdid + 0x4) >> nbfid),
+						_refclk
 				);
 			}
 			break;
@@ -431,9 +440,6 @@ void checkFamily() {
 			if (cpuModel > 0x0f) {
 				NB_VID_BITS = "31:24";
 			}
-			if (cpuModel >= 0x00 && cpuModel <= 0x0f) {
-				REFCLK = 200;
-			}
 			break;
 		case AMD16H:
 			NB_VID_BITS = "31:24";
@@ -449,7 +455,7 @@ void checkFamily() {
 		case AMD13H:
 		case AMD14H: // Disabled due to differences in cpu vid / did / fid
 		default:
-			error("Your CPU family is unsupported by amdctl.");
+			error("Your CPU family is not supported by amdctl.");
 	}
 }
 
