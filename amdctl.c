@@ -90,10 +90,14 @@ static int PSTATES = 8, DIDS = 5, cpuFamily = 0, cpuModel = -1, cores = 0,
 		pvi = 0, debug = 0, quiet = 0, testMode = 0, core = -1, pstate = -1;
 
 // AMD14H (Bobcat) related constants and static vars
-#define REG_CLOCK_POWER_CONTROL		0xd4
+#define REG_CLOCK_POWER_CONTROL	      0xd4
+#define COFVID_MIN_VID_BITS           "48:42"
+#define COFVID_MAX_VID_BITS           "41:35"
+static int COFVID_MAX_VID	      =	1;
+static int COFVID_MIN_VID	      = 128;
+static int mainPllCof                 = -1;
 static char *ADDR_CLOCK_POWER_CONTROL =	"18.3";
 static char *MAIN_PLL_OP_FREQ_ID_BITS = "5:0";
-static int mainPllCof                 = -1;
 
 int main(int argc, char **argv) {
 	getCpuInfo();
@@ -193,8 +197,22 @@ int main(int argc, char **argv) {
 				exit(EXIT_SUCCESS);
 			case 'v':
 				cv = atoi(optarg);
-				if (cv < 0 || cv > MAX_VID) {
-					error("Option -v must be between 0 and 124.");
+				switch(cpuFamily) {
+					case AMD14H:
+						if(!COFVID_MAX_VID) COFVID_MAX_VID = 1;
+						if(!COFVID_MIN_VID) COFVID_MIN_VID = 128;
+
+						if( (COFVID_MAX_VID && cv < COFVID_MAX_VID) || 
+                                                    (COFVID_MIN_VID && cv > COFVID_MIN_VID) ) {
+							char tmpbuf[1024];
+							snprintf(tmpbuf,1024,"Option -v must be between %d, and %d (lower value = higher voltage)", COFVID_MAX_VID, COFVID_MIN_VID);
+							error((const char*)tmpbuf);
+						}
+						break;
+					default:
+						if (cv < 0 || cv > MAX_VID) {
+							error("Option -v must be between 0 and 124.");
+						}
 				}
 				break;
 			case 'e':
@@ -252,6 +270,7 @@ int main(int argc, char **argv) {
 		tmp_pstates[0] = PSTATE_BASE + pstate;
 		pstates_count = 1;
 	}
+
 
 	for (; core < cores; core++) {
 		getReg(PSTATE_CURRENT_LIMIT);
@@ -323,7 +342,6 @@ int main(int argc, char **argv) {
 				if (!quiet) {
 					printf("%7s", "current");
 				}
-				getReg(COFVID_STATUS);
 				printBaseFmt(0);
 				break;
 		}
@@ -477,6 +495,11 @@ void checkFamily() {
                         CPU_FID_BITS   = "3:0"; // Actually CPU_DID_LSD
                    	getAddr(ADDR_CLOCK_POWER_CONTROL, REG_CLOCK_POWER_CONTROL);
                         mainPllCof = 100 * (getDec(MAIN_PLL_OP_FREQ_ID_BITS) + 16);
+			core = 0;
+			getReg(COFVID_STATUS);
+			COFVID_MIN_VID = getDec(COFVID_MIN_VID_BITS);
+			COFVID_MAX_VID = getDec(COFVID_MAX_VID_BITS);
+			core = -1;
                         break;
 		case AMD13H:
 		default:
@@ -500,6 +523,7 @@ void usage() {
 	}
 	printf("    -d    Set the CPU divisor id (did).\n");
 	printf("    -f    Set the CPU frequency id (fid).\n");
+	printf("    -v    Set the CPU voltage id (vid).\n");
 	printf("    -a    Activate (1) or deactivate (0) P-state.\n");
 	printf("    -e    Show current P-State only.\n");
 	printf("    -t    Preview changes without applying them to the CPU.\n");
