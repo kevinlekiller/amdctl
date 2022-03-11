@@ -76,13 +76,6 @@ void northBridge(const int);
 #define VID_DIVIDOR2 12.5
 #define VID_DIVIDOR3 6.25
 
-// AMD14H (Bobcat) related constants
-#define ADDR_CLOCK_POWER_CONTROL 	"18.3"
-#define REG_CLOCK_POWER_CONTROL		0xd4
-#define MAIN_PLL_OP_FREQ_ID_BITS	"5:0"
-static int mainPllCof = -1;
-
-
 static const int REFCLK     = 100;  // this is considered a read-only invariant!
 static char *NB_VID_BITS    = "31:25";
 static char *CPU_DID_BITS   = "8:6";
@@ -95,6 +88,12 @@ static char *IDD_VALUE_BITS = "39:32";
 static uint64_t buffer;
 static int PSTATES = 8, DIDS = 5, cpuFamily = 0, cpuModel = -1, cores = 0,
 		pvi = 0, debug = 0, quiet = 0, testMode = 0, core = -1, pstate = -1;
+
+// AMD14H (Bobcat) related constants and static vars
+#define REG_CLOCK_POWER_CONTROL		0xd4
+static char *ADDR_CLOCK_POWER_CONTROL =	"18.3";
+static char *MAIN_PLL_OP_FREQ_ID_BITS = "5:0";
+static int mainPllCof                 = -1;
 
 int main(int argc, char **argv) {
 	getCpuInfo();
@@ -124,6 +123,11 @@ int main(int argc, char **argv) {
 				}
 				break;
 			case 'd':
+				switch(cpuFamily) {
+                                	case AMD14H:
+						error("ERROR: setting values not yet supported for AMD14H Bobcat");
+                                        break;
+                                }
 				did = atoi(optarg);
 				if (did > DIDS || did < 0) {
 					if (!quiet) {
@@ -133,6 +137,11 @@ int main(int argc, char **argv) {
 				}
 				break;
 			case 'f':
+				switch(cpuFamily) {
+                                	case AMD14H:
+						error("ERROR: setting values not yet supported for AMD14H Bobcat");
+                                        break;
+                                }
 				fid = atoi(optarg);
 				int maxFid;
 				switch (cpuFamily) {
@@ -789,7 +798,10 @@ double vidTomV(const int vid) {
 	}
 
 	// https://github.com/mpollice/AmdMsrTweaker/blob/master/Info.cpp#L47
-	if (cpuFamily == AMD17H || cpuFamily == AMD19H || (cpuFamily == AMD15H && ((cpuModel > 0x0f && cpuModel < 0x20) || (cpuModel > 0x2f && cpuModel < 0x40)))) {
+	if (cpuFamily == AMD17H ||
+            cpuFamily == AMD19H ||
+            (cpuFamily == AMD15H && ((cpuModel > 0x0f && cpuModel < 0x20) || (cpuModel > 0x2f && cpuModel < 0x40))) ||
+            cpuFamily == AMD14H) {
 		return (MAX_VOLTAGE - (vid * VID_DIVIDOR3));
 	}
 
