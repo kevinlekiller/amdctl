@@ -47,10 +47,10 @@ void usage();
 void fieldDescriptions();
 void northBridge(const int);
 
-#define PSTATE_CURRENT_LIMIT 0xc0010061
-#define PSTATE_STATUS        0xc0010063
-#define PSTATE_BASE          0xc0010064
-#define COFVID_STATUS        0xc0010071
+#define PSTATE_CURRENT_LIMIT 	0xc0010061
+#define PSTATE_STATUS        	0xc0010063
+#define PSTATE_BASE          	0xc0010064
+#define COFVID_STATUS        	0xc0010071
 
 #define AMD10H 0x10 // K10
 #define AMD11H 0x11 // Turion
@@ -62,10 +62,10 @@ void northBridge(const int);
 #define AMD17H 0x17 // Zen Zen+ Zen2
 #define AMD19H 0x19 // Zen3
 
-#define PSTATE_EN_BITS        "63:63"
-#define PSTATE_MAX_VAL_BITS   "6:4"
-#define CUR_PSTATE_LIMIT_BITS "2:0"
-#define CUR_PSTATE_BITS       "2:0"
+#define PSTATE_EN_BITS        		"63:63"
+#define PSTATE_MAX_VAL_BITS   		"6:4"
+#define CUR_PSTATE_LIMIT_BITS 		"2:0"
+#define CUR_PSTATE_BITS       		"2:0"
 
 #define MAX_VOLTAGE  1550
 #define MID_VOLTAGE  1162.5
@@ -75,6 +75,13 @@ void northBridge(const int);
 #define VID_DIVIDOR1 25
 #define VID_DIVIDOR2 12.5
 #define VID_DIVIDOR3 6.25
+
+// AMD14H (Bobcat) related constants
+#define ADDR_CLOCK_POWER_CONTROL 	"18.3"
+#define REG_CLOCK_POWER_CONTROL		0xd4
+#define MAIN_PLL_OP_FREQ_ID_BITS	"5:0"
+static int mainPllCof = -1;
+
 
 static const int REFCLK     = 100;  // this is considered a read-only invariant!
 static char *NB_VID_BITS    = "31:25";
@@ -456,8 +463,13 @@ void checkFamily() {
 			IDD_DIV_BITS = "31:30";
 			IDD_VALUE_BITS = "29:22";
 			break;
+		case AMD14H:
+                        CPU_DID_BITS   = "8:4"; // Acutally CPU_DID_MSD
+                        CPU_FID_BITS   = "3:0"; // Actually CPU_DID_LSD
+                   	getAddr(ADDR_CLOCK_POWER_CONTROL, REG_CLOCK_POWER_CONTROL);
+                        mainPllCof = 100 * (getDec(MAIN_PLL_OP_FREQ_ID_BITS) + 16);
+                        break;
 		case AMD13H:
-		case AMD14H: // Disabled due to differences in cpu vid / did / fid
 		default:
 			error("Your CPU family is not supported by amdctl.");
 	}
@@ -628,12 +640,17 @@ float getCpuMultiplier(const int CpuFid, const int CpuDid) {
 		case AMD17H:
 		case AMD19H:
 			return (CpuFid * VID_DIVIDOR1) / (CpuDid * VID_DIVIDOR2);
+                case AMD14H:
+                        return 0;
 		default:
 			return 0;
 	}
 }
 
 int getClockSpeed(const int CpuFid, const int CpuDid) {
+        float cpuDidMsd = CpuDid, cpuDidLsd = CpuFid;
+	float coreClockDiv = 1;
+
 	switch (cpuFamily) {
 		case AMD10H:
 		case AMD15H:
@@ -646,6 +663,9 @@ int getClockSpeed(const int CpuFid, const int CpuDid) {
 		case AMD17H:
 		case AMD19H:
 			return CpuFid && CpuDid ? (int) (((float)CpuFid / (float)CpuDid) * REFCLK * 2) : 0;
+                case AMD14H:
+                        coreClockDiv = (cpuDidMsd + cpuDidLsd*0.25 + 1.0f);
+			return mainPllCof / coreClockDiv;
 		default:
 			return 0;
 	}
