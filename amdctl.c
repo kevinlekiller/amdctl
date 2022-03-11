@@ -91,9 +91,19 @@ static int PSTATES = 8, DIDS = 5, cpuFamily = 0, cpuModel = -1, cores = 0,
 
 int main(int argc, char **argv) {
 	getCpuInfo();
-	checkFamily();
 
 	int nv = -1, cv = -1, c, opts = 0, did = -1, fid = -1, currentOnly = 0, togglePs = -1, mVolt;
+	if (!quiet) {
+		printf("Voltage ID encodings: %s\n", (pvi ? "PVI (parallel)" : "SVI (serial)"));
+		printf("Detected CPU model %xh, from family %xh with %d CPU cores (REFCLK = %dMHz).\n", cpuModel, cpuFamily, cores, REFCLK);
+		if (nv > -1 || cv > -1 || fid > -1 || did > -1) {
+			printf("%s\n", (testMode ? "Preview mode On - No P-State values will be changed."
+									 : "PREVIEW MODE OFF - P-STATES WILL BE CHANGED!"));
+		}
+	}
+	
+        checkFamily();
+
 	while ((c = getopt(argc, argv, "eghistxa:c:d:f:l:m:n:p:u:v:")) != -1) {
 		opts = 1;
 		switch (c) {
@@ -206,14 +216,6 @@ int main(int argc, char **argv) {
 		error("You must pass the -p argument when passing the -x argument.");
 	}
 
-	if (!quiet) {
-		printf("Voltage ID encodings: %s\n", (pvi ? "PVI (parallel)" : "SVI (serial)"));
-		printf("Detected CPU model %xh, from family %xh with %d CPU cores (REFCLK = %dMHz).\n", cpuModel, cpuFamily, cores, REFCLK);
-		if (nv > -1 || cv > -1 || fid > -1 || did > -1) {
-			printf("%s\n", (testMode ? "Preview mode On - No P-State values will be changed."
-									 : "PREVIEW MODE OFF - P-STATES WILL BE CHANGED!"));
-		}
-	}
 
 	if (core == -1) {
 		core = 0;
