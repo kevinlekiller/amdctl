@@ -120,12 +120,13 @@ int main(int argc, char **argv) {
 				}
 				break;
 			case 'd':
+				did = atoi(optarg);
 				switch(cpuFamily) {
                                 	case AMD14H:
-						error("ERROR: setting values not yet supported for AMD14H Bobcat");
+						DIDS = 25;
                                         break;
                                 }
-				did = atoi(optarg);
+
 				if (did > DIDS || did < 0) {
 					if (!quiet) {
 						fprintf(stderr, "ERROR: Option -d must be a number 0 to %d\n", DIDS);
@@ -134,11 +135,6 @@ int main(int argc, char **argv) {
 				}
 				break;
 			case 'f':
-				switch(cpuFamily) {
-                                	case AMD14H:
-						error("ERROR: setting values not yet supported for AMD14H Bobcat");
-                                        break;
-                                }
 				fid = atoi(optarg);
 				int maxFid;
 				switch (cpuFamily) {
@@ -146,6 +142,9 @@ int main(int argc, char **argv) {
 					case AMD19H:
 						maxFid = 0xc0;
 						break;
+                                 	case AMD14H:
+						maxFid = 3;
+                                        break;
 					default:
 						maxFid = 0x2f;
 						break;
@@ -516,8 +515,16 @@ void usage() {
 	if (cpuFamily == AMD10H) {
 		printf("    -n    Set north bridge voltage id (vid).\n");
 	}
-	printf("    -d    Set the CPU divisor id (did).\n");
-	printf("    -f    Set the CPU frequency id (fid).\n");
+	if (cpuFamily == AMD14H) {
+		printf("    -d    Set the CPU divisor ID most significant digit (CpuDidMSD).\n");
+	} else {
+		printf("    -d    Set the CPU divisor id (did).\n");
+	}
+	if (cpuFamily == AMD14H) {
+		printf("    -f    Set the CPU divisor ID least significant digit (CpuDidLSD).\n");
+	} else {
+		printf("    -f    Set the CPU frequency id (fid).\n");
+	}
 	printf("    -v    Set the CPU voltage id (vid).\n");
 	printf("    -a    Activate (1) or deactivate (0) P-state.\n");
 	printf("    -e    Show current P-State only.\n");
