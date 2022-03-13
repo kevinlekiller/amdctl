@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2015-2021  kevinlekiller
+ * Copyright (C) 2015-2022  kevinlekiller
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,7 +25,9 @@
 
 #include <linux/version.h>
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5,9,0)
-	#pragma GCC warning "Incompatible kernel! MSR access deprecated by your Linux kernel! To use this program, set the kernel parameter msr.allow_writes=on or set /sys/module/msr/parameters/allow_writes to on at runtime."
+	#pragma GCC warning "Incompatible kernel! MSR access deprecated by your Linux kernel!"
+	#pragma GCC warning "To use this program, set the kernel parameter msr.allow_writes=on"
+	#pragma GCC warning "Alternatively, at runtime, set /sys/module/msr/parameters/allow_writes to on ; sudo sh -c 'echo on > /sys/module/msr/parameters/allow_writes'"
 #endif
 
 void printBaseFmt(const int);
@@ -504,8 +506,8 @@ void checkFamily() {
 void usage() {
 	printf("WARNING: This software can damage your CPU, use with caution.\n");
 	printf("Tool for under/over clocking/volting AMD CPU's.\n");
-	printf("Supported AMD CPU families: 10h,11h,12h,15h,16h,17h,19h\n");
-	printf("These AMD CPU families are unsupported: 13h,14h, anything older than 10h or newer than 19h\n");
+	printf("Supported AMD CPU families: 10h,11h,12h,14h,15h,16h,17h,19h\n");
+	printf("These AMD CPU families are unsupported: 13h, 18h, anything older than 10h or newer than 19h\n");
 	printf("Usage:\n");
 	printf("amdctl [options]\n");
 	printf("    -g    Get P-State information.\n");
