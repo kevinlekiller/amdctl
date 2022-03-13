@@ -514,7 +514,7 @@ void usage() {
 	printf("    -c    CPU core to work on.\n");
 	printf("    -p    P-state to work on.\n");
 	printf("    -v    Set CPU voltage id (vid).\n");
-	if (cpuFamily == AMD10H) {
+	if (cpuFamily == AMD10H || cpuFamily == AMD11H) {
 		printf("    -n    Set north bridge voltage id (vid).\n");
 	}
 	if (cpuFamily == AMD14H) {
