@@ -336,6 +336,7 @@ int main(int argc, char **argv) {
 				if (!quiet) {
 					printf("%7s", "current");
 				}
+				getReg(COFVID_STATUS);
 				printBaseFmt(0);
 				break;
 		}
