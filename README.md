@@ -33,7 +33,7 @@ This applies the undervolt to all cores. You can specify a core by using the `-c
 
 ### Supported CPU Families:
 
-AMD CPU family's 10h(K10), 11h(Turion), 12h(Fusion), 15h(Bulldozer), 16h(Jaguar), 17h(Zen, Zen+, Zen 2), 19h(Zen 3).
+AMD CPU family's 10h(K10), 11h(Turion), 12h(Fusion), 14h (Bobcat), 15h(Bulldozer), 16h(Jaguar), 17h(Zen, Zen+, Zen 2), 19h(Zen 3).
 
 This would be most AMD CPU's between 2007 and 2021.
 
@@ -47,8 +47,6 @@ The program will check if your CPU is supported when run.
 AMD CPU family 9h(K9) and earlier.
 
 AMD 13h, I could not find any info on this, so I assume this CPU family does not exist.
-
-AMD 14h(Bobcat) family, these have a different way of calculating clock speed, without a CPU to test I won't attempt to support them.
 
 AMD 18h(EPYC / Hygon Dhyana), no public documentation available ?
 
