@@ -47,10 +47,10 @@ void usage();
 void fieldDescriptions();
 void northBridge(const int);
 
-#define PSTATE_CURRENT_LIMIT 0xc0010061
-#define PSTATE_STATUS        0xc0010063
-#define PSTATE_BASE          0xc0010064
-#define COFVID_STATUS        0xc0010071
+#define PSTATE_CURRENT_LIMIT 	0xc0010061
+#define PSTATE_STATUS        	0xc0010063
+#define PSTATE_BASE          	0xc0010064
+#define COFVID_STATUS        	0xc0010071
 
 #define AMD10H 0x10 // K10
 #define AMD11H 0x11 // Turion
@@ -62,10 +62,10 @@ void northBridge(const int);
 #define AMD17H 0x17 // Zen Zen+ Zen2
 #define AMD19H 0x19 // Zen3
 
-#define PSTATE_EN_BITS        "63:63"
-#define PSTATE_MAX_VAL_BITS   "6:4"
-#define CUR_PSTATE_LIMIT_BITS "2:0"
-#define CUR_PSTATE_BITS       "2:0"
+#define PSTATE_EN_BITS        		"63:63"
+#define PSTATE_MAX_VAL_BITS   		"6:4"
+#define CUR_PSTATE_LIMIT_BITS 		"2:0"
+#define CUR_PSTATE_BITS       		"2:0"
 
 #define MAX_VOLTAGE  1550
 #define MID_VOLTAGE  1162.5
@@ -88,6 +88,16 @@ static char *IDD_VALUE_BITS = "39:32";
 static uint64_t buffer;
 static int PSTATES = 8, DIDS = 5, cpuFamily = 0, cpuModel = -1, cores = 0,
 		pvi = 0, debug = 0, quiet = 0, testMode = 0, core = -1, pstate = -1;
+
+// AMD14H (Bobcat) related constants and static vars
+#define REG_CLOCK_POWER_CONTROL	      0xd4
+#define COFVID_MIN_VID_BITS           "48:42"
+#define COFVID_MAX_VID_BITS           "41:35"
+static int COFVID_MAX_VID	      =	1;
+static int COFVID_MIN_VID	      = 128;
+static int mainPllCof                 = -1;
+static char *ADDR_CLOCK_POWER_CONTROL =	"18.3";
+static char *MAIN_PLL_OP_FREQ_ID_BITS = "5:0";
 
 int main(int argc, char **argv) {
 	getCpuInfo();
@@ -118,6 +128,12 @@ int main(int argc, char **argv) {
 				break;
 			case 'd':
 				did = atoi(optarg);
+				switch(cpuFamily) {
+                                	case AMD14H:
+						DIDS = 25;
+                                        break;
+                                }
+
 				if (did > DIDS || did < 0) {
 					if (!quiet) {
 						fprintf(stderr, "ERROR: Option -d must be a number 0 to %d\n", DIDS);
@@ -133,6 +149,9 @@ int main(int argc, char **argv) {
 					case AMD19H:
 						maxFid = 0xc0;
 						break;
+                                 	case AMD14H:
+						maxFid = 3;
+                                        break;
 					default:
 						maxFid = 0x2f;
 						break;
@@ -177,8 +196,22 @@ int main(int argc, char **argv) {
 				exit(EXIT_SUCCESS);
 			case 'v':
 				cv = atoi(optarg);
-				if (cv < 0 || cv > MAX_VID) {
-					error("Option -v must be between 0 and 124.");
+				switch(cpuFamily) {
+					case AMD14H:
+						if(!COFVID_MAX_VID) COFVID_MAX_VID = 1;
+						if(!COFVID_MIN_VID) COFVID_MIN_VID = 128;
+
+						if( (COFVID_MAX_VID && cv < COFVID_MAX_VID) || 
+                                                    (COFVID_MIN_VID && cv > COFVID_MIN_VID) ) {
+							char tmpbuf[1024];
+							snprintf(tmpbuf,1024,"Option -v must be between %d, and %d (lower value = higher voltage)", COFVID_MAX_VID, COFVID_MIN_VID);
+							error((const char*)tmpbuf);
+						}
+						break;
+					default:
+						if (cv < 0 || cv > MAX_VID) {
+							error("Option -v must be between 0 and 124.");
+						}
 				}
 				break;
 			case 'e':
@@ -236,6 +269,7 @@ int main(int argc, char **argv) {
 		tmp_pstates[0] = PSTATE_BASE + pstate;
 		pstates_count = 1;
 	}
+
 
 	for (; core < cores; core++) {
 		getReg(PSTATE_CURRENT_LIMIT);
@@ -456,8 +490,18 @@ void checkFamily() {
 			IDD_DIV_BITS = "31:30";
 			IDD_VALUE_BITS = "29:22";
 			break;
+		case AMD14H:
+                        CPU_DID_BITS   = "8:4"; // Acutally CPU_DID_MSD
+                        CPU_FID_BITS   = "3:0"; // Actually CPU_DID_LSD
+                   	getAddr(ADDR_CLOCK_POWER_CONTROL, REG_CLOCK_POWER_CONTROL);
+                        mainPllCof = 100 * (getDec(MAIN_PLL_OP_FREQ_ID_BITS) + 16);
+			core = 0;
+			getReg(COFVID_STATUS);
+			COFVID_MIN_VID = getDec(COFVID_MIN_VID_BITS);
+			COFVID_MAX_VID = getDec(COFVID_MAX_VID_BITS);
+			core = -1;
+                        break;
 		case AMD13H:
-		case AMD14H: // Disabled due to differences in cpu vid / did / fid
 		default:
 			error("Your CPU family is not supported by amdctl.");
 	}
@@ -477,8 +521,17 @@ void usage() {
 	if (cpuFamily == AMD10H) {
 		printf("    -n    Set north bridge voltage id (vid).\n");
 	}
-	printf("    -d    Set the CPU divisor id (did).\n");
-	printf("    -f    Set the CPU frequency id (fid).\n");
+	if (cpuFamily == AMD14H) {
+		printf("    -d    Set the CPU divisor ID most significant digit (CpuDidMSD).\n");
+	} else {
+		printf("    -d    Set the CPU divisor id (did).\n");
+	}
+	if (cpuFamily == AMD14H) {
+		printf("    -f    Set the CPU divisor ID least significant digit (CpuDidLSD).\n");
+	} else {
+		printf("    -f    Set the CPU frequency id (fid).\n");
+	}
+	printf("    -v    Set the CPU voltage id (vid).\n");
 	printf("    -a    Activate (1) or deactivate (0) P-state.\n");
 	printf("    -e    Show current P-State only.\n");
 	printf("    -t    Preview changes without applying them to the CPU.\n");
@@ -628,12 +681,17 @@ float getCpuMultiplier(const int CpuFid, const int CpuDid) {
 		case AMD17H:
 		case AMD19H:
 			return (CpuFid * VID_DIVIDOR1) / (CpuDid * VID_DIVIDOR2);
+                case AMD14H:
+                        return 0;
 		default:
 			return 0;
 	}
 }
 
 int getClockSpeed(const int CpuFid, const int CpuDid) {
+        float cpuDidMsd = CpuDid, cpuDidLsd = CpuFid;
+	float coreClockDiv = 1;
+
 	switch (cpuFamily) {
 		case AMD10H:
 		case AMD15H:
@@ -646,6 +704,9 @@ int getClockSpeed(const int CpuFid, const int CpuDid) {
 		case AMD17H:
 		case AMD19H:
 			return CpuFid && CpuDid ? (int) (((float)CpuFid / (float)CpuDid) * REFCLK * 2) : 0;
+                case AMD14H:
+                        coreClockDiv = (cpuDidMsd + cpuDidLsd*0.25 + 1.0f);
+			return mainPllCof / coreClockDiv;
 		default:
 			return 0;
 	}
@@ -769,7 +830,10 @@ double vidTomV(const int vid) {
 	}
 
 	// https://github.com/mpollice/AmdMsrTweaker/blob/master/Info.cpp#L47
-	if (cpuFamily == AMD17H || cpuFamily == AMD19H || (cpuFamily == AMD15H && ((cpuModel > 0x0f && cpuModel < 0x20) || (cpuModel > 0x2f && cpuModel < 0x40)))) {
+	if (cpuFamily == AMD17H ||
+            cpuFamily == AMD19H ||
+            (cpuFamily == AMD15H && ((cpuModel > 0x0f && cpuModel < 0x20) || (cpuModel > 0x2f && cpuModel < 0x40))) ||
+            cpuFamily == AMD14H) {
 		return (MAX_VOLTAGE - (vid * VID_DIVIDOR3));
 	}
 
