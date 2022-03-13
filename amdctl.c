@@ -681,7 +681,7 @@ float getCpuMultiplier(const int CpuFid, const int CpuDid) {
 }
 
 /**
- * 14h uses DidMsd and DidLsd for calculation, pass DidMsd to CpuFid and DidLsd to CpuDid
+ * 14h uses DidMsd and DidLsd for calculation, pass DidMsd to CpuDid and DidLsd to CpuFid
  */
 float getClockSpeed(const int CpuFid, const int CpuDid) {
 	switch (cpuFamily) {
