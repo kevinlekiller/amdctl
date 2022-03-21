@@ -54,14 +54,56 @@ void northBridge(const int);
 #define PSTATE_BASE          0xc0010064
 #define COFVID_STATUS        0xc0010071
 
+/* BIOS and Kernel Developer’s Guide (BKDG) For AMD Family 10h Processors
+ * https://web.archive.org/web/20211030021345/https://www.amd.com/system/files/TechDocs/31116.pdf
+ */
 #define AMD10H 0x10 // K10
+/* BIOS and Kernel Developer’s Guide (BKDG) For AMD Family 11h Processors
+ * https://web.archive.org/web/20220121164239/https://www.amd.com/system/files/TechDocs/41256.pdf
+ */
 #define AMD11H 0x11 // Turion
+/* BIOS and Kernel Developer’s Guide (BKDG) For AMD Family 12h Processors
+ * https://web.archive.org/web/20211028164154/https://developer.amd.com/wordpress/media/2012/10/41131.pdf
+ */
 #define AMD12H 0x12 // Fusion
 #define AMD13H 0x13 // Unknown
+/* BIOS and Kernel Developer Guide (BKDG) for AMD Family 14h Models 00h-0Fh Processors
+ * https://web.archive.org/web/20210805232321/https://www.amd.com/system/files/TechDocs/43170_14h_Mod_00h-0Fh_BKDG.pdf
+ */
 #define AMD14H 0x14 // Bobcat
+/* BIOS and Kernel Developer’s Guide (BKDG) for AMD Family 15h Models 00h-0Fh Processors
+ * https://web.archive.org/web/20220209044213/https://www.amd.com/system/files/TechDocs/42301_15h_Mod_00h-0Fh_BKDG.pdf
+ * BIOS and Kernel Developer’s Guide (BKDG) for AMD Family 15h Models 10h-1Fh Processors
+ * https://web.archive.org/web/20220210053552/https://www.amd.com/system/files/TechDocs/42300_15h_Mod_10h-1Fh_BKDG.pdf
+ * BIOS and Kernel Developer’s Guide (BKDG) for AMD Family 15h Models 30h-3Fh Processors
+ * https://web.archive.org/web/20220210071117/https://www.amd.com/system/files/TechDocs/49125_15h_Models_30h-3Fh_BKDG.pdf
+ * BIOS and Kernel Developer’s Guide (BKDG) for AMD Family 15h Models 60h-6Fh Processors
+ * https://web.archive.org/web/20220210071119/https://www.amd.com/system/files/TechDocs/50742_15h_Models_60h-6Fh_BKDG.pdf
+ * BIOS and Kernel Developer’s Guide (BKDG) for AMD Family 15h Models 70h-7Fh Processors
+ * https://web.archive.org/web/20220210071122/https://www.amd.com/system/files/TechDocs/55072_AMD_Family_15h_Models_70h-7Fh_BKDG.pdf
+ */
 #define AMD15H 0x15 // Bulldozer
+/* BIOS and Kernel Developer’s Guide (BKDG) for AMD Family 16h Models 00h-0Fh Processors
+ * https://web.archive.org/web/20220210082955/https://www.amd.com/system/files/TechDocs/48751_16h_bkdg.pdf
+ * BIOS and Kernel Developer’s Guide (BKDG) for AMD Family 16h Models 30h-3Fh Processors
+ * https://web.archive.org/web/20220210083005/https://www.amd.com/system/files/TechDocs/52740_16h_Models_30h-3Fh_BKDG.pdf
+ */
 #define AMD16H 0x16 // Jaguar
+/* Processor Programming Reference (PPR) for AMD Family 17h Models 00h-0Fh Processors (PUB)
+ * https://web.archive.org/web/20210805232831/https://www.amd.com/system/files/TechDocs/54945_3.03_ppr_ZP_B2_pub.zip
+ * Processor Programming Reference (PPR) for AMD Family 17h Model 18h, Revision B1 Processors (PUB)
+ * https://web.archive.org/web/20210805232136/https://www.amd.com/system/files/TechDocs/55570-B1-PUB.zip
+ * Processor Programming Reference (PPR) for AMD Family 17h Model 71h, Revision B0 Processors (PUB)
+ * https://web.archive.org/web/20220108160138/https://developer.amd.com/wp-content/resources/56176_ppr_Family_17h_Model_71h_B0_pub_Rev_3.06.zip
+ * Processor Programming Reference (PPR) for AMD Family 17h Models 60h, Revision A1 Processors (PUB)
+ * https://web.archive.org/web/20210805232328/https://www.amd.com/system/files/TechDocs/55922-A1-PUB.zip
+ * Open-Source Register Reference for AMD Family 17h Processors (PUB)
+ * https://web.archive.org/web/20220108160120/https://developer.amd.com/wp-content/resources/56255_3_03.PDF
+ */
 #define AMD17H 0x17 // Zen Zen+ Zen2
+/* Preliminary Processor Programming Reference (PPR) for AMD Family 19h Model 21h, Revision B0 Processors (PUB)
+ * https://web.archive.org/web/20210604070321/https://www.amd.com/system/files/TechDocs/56214-B0-PUB.zip
+ */
 #define AMD19H 0x19 // Zen3
 
 #define PSTATE_EN_BITS        "63:63"
