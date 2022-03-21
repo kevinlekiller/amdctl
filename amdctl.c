@@ -538,6 +538,7 @@ void checkFamily() {
 			break;
 		case AMD17H:
 		case AMD19H:
+			DIDS = 0x30;
 			CPU_VID_BITS   = "21:14";
 			CPU_DID_BITS   = "13:8";
 			CPU_FID_BITS   = "7:0";
