@@ -416,9 +416,12 @@ void northBridge(const int nvid) {
 }
 
 void getCpuInfo() {
-	if (debug && !quiet) { printf("DEBUG: Checking CPU info.\n"); }
 	FILE *fp;
 	char buff[8192];
+
+	if (debug && !quiet) {
+		printf("DEBUG: Checking CPU info.\n");
+	}
 
 	fp = fopen("/proc/cpuinfo", "r");
 	if (fp == NULL) {
@@ -445,17 +448,19 @@ void getCpuInfo() {
 		error("Could not find CPU family or model!");
 	}
 
-	// dual cpu or quad cpu motherboard patch.
-	int testcores=(int)sysconf(_SC_NPROCESSORS_CONF);
-	if(testcores>cores){
-		printf("Multi-CPU motherboard detected: CPU has %d cores, but there is a total %d cores in %d CPU sockets\n", cores, testcores, testcores/cores);
-		cores=testcores;
+	// Check for dual or quad CPU motherboards.
+	int testcores = (int) sysconf(_SC_NPROCESSORS_CONF);
+	if (testcores > cores) {
+		printf("Multi-CPU motherboard detected: CPU has %d cores, but there is a total %d cores in %d CPU sockets.\n", cores, testcores, testcores/cores);
+		cores = testcores;
 	}
 
 }
 
 void checkFamily() {
-	if (debug && !quiet) { printf("DEBUG: Setting variables based on CPU model.\n"); }
+	if (debug && !quiet) {
+		printf("DEBUG: Setting variables based on CPU model.\n");
+	}
 	switch (cpuFamily) {
 		case AMD10H:
 			getVidType();
@@ -623,9 +628,12 @@ void printBaseFmt(const int idd) {
 }
 
 void getReg(const uint32_t reg) {
-	if (debug && !quiet) { printf("DEBUG: Getting data from CPU %d at register %x\n", core, reg); }
 	char path[32];
 	int fh;
+
+	if (debug && !quiet) {
+		printf("DEBUG: Getting data from CPU %d at register %x\n", core, reg);
+	}
 
 	sprintf(path, "/dev/cpu/%d/msr", core);
 	fh = open(path, O_RDONLY);
@@ -646,7 +654,9 @@ void getAddr(const char * loc, const uint32_t reg) {
 
 	sprintf(path, "/proc/bus/pci/00/%s", loc);
 
-	if (debug && !quiet) { printf("DEBUG: Getting data from PCI config space address %x at location %s\n", reg, path); }
+	if (debug && !quiet) {
+		printf("DEBUG: Getting data from PCI config space address %x at location %s\n", reg, path);
+	}
 
 	fh = open(path, O_RDONLY);
 	if (fh < 0) {
