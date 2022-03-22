@@ -147,11 +147,6 @@ int main(int argc, char **argv) {
 
 	int nv = -1, cv = -1, c, opts = 0, did = -1, fid = -1, currentOnly = 0, togglePs = -1, mVolt;
 
-	if (!quiet) {
-		printf("Voltage ID encodings: %s\n", (pvi ? "PVI (parallel)" : "SVI (serial)"));
-		printf("Detected CPU model %xh, from family %xh with %d CPU cores (REFCLK = %dMHz).\n", cpuModel, cpuFamily, cores, REFCLK);
-	}
-
 	checkFamily();
 	while ((c = getopt(argc, argv, "eghistxa:c:d:f:l:m:n:p:u:v:")) != -1) {
 		opts = 1;
@@ -240,16 +235,19 @@ int main(int argc, char **argv) {
 						if (!COFVID_MIN_VID) {
 							COFVID_MIN_VID = 128;
 						}
-						if ((COFVID_MAX_VID && cv < COFVID_MAX_VID) ||
-							(COFVID_MIN_VID && cv > COFVID_MIN_VID)) {
-							char tmpbuf[1024];
-							snprintf(tmpbuf, 1024, "Option -v must be between %d, and %d (lower value = higher voltage)", COFVID_MAX_VID, COFVID_MIN_VID);
-							error((const char*)tmpbuf);
+						if (cv < COFVID_MAX_VID || cv > COFVID_MIN_VID) {
+							if (!quiet) {
+								fprintf(stderr, "ERROR: Option -v must be between %d, and %d (lower value = higher voltage).\n", COFVID_MAX_VID, COFVID_MIN_VID);
+							}
+							exit(EXIT_FAILURE);
 						}
 						break;
 					default:
 						if (cv < 0 || cv > MAX_VID) {
-							error("Option -v must be between 0 and 124.");
+							if (!quiet) {
+								fprintf(stderr, "ERROR: Option -v must be between 0 and %d.\n", MAX_VID);
+							}
+							exit(EXIT_FAILURE);
 						}
 				}
 				break;
@@ -281,14 +279,18 @@ int main(int argc, char **argv) {
 	if (!opts) {
 		usage();
 	}
+
+	if (!quiet) {
+		printf("Detected CPU model %xh, from family %xh with %d CPU cores (REFCLK = %dMHz ; Voltage ID Encodings: %s).\n", cpuModel, cpuFamily, cores, REFCLK, (pvi ? "PVI (parallel)" : "SVI (serial)"));
+	}
+
 	if (togglePs > -1 && pstate == -1) {
 		error("You must pass the -p argument when passing the -x argument.");
 	}
 
 	if (!quiet) {
 		if (nv > -1 || cv > -1 || fid > -1 || did > -1) {
-			printf("%s\n", (testMode ? "Preview mode On - No P-State values will be changed."
-									 : "PREVIEW MODE OFF - P-STATES WILL BE CHANGED!"));
+			printf("%s\n", (testMode ? "Preview mode On - No P-State values will be changed." : "PREVIEW MODE OFF - P-STATES WILL BE CHANGED!"));
 		}
 	}
 
@@ -324,21 +326,9 @@ int main(int argc, char **argv) {
 		}
 		getReg(PSTATE_STATUS);
 		if (!quiet) {
-			printf("\nCore %d | P-State Limits (non-turbo): Highest: %d ; Lowest %d | Current P-State: %d\n", core,
-				   maxPstate, minPstate, curPstate);
-			if (cpuFamily == AMD10H || cpuFamily == AMD11H) {
-				printf(
-						"%7s%7s%7s%7s%7s%9s%12s%8s%6s%7s%7s%7s%8s%9s\n",
-						"Pstate", "Status", "CpuFid", "CpuDid", "CpuVid", "CpuMult", "CpuFreq", "CpuVolt", "NbVid",
-						"NbVolt", "IddVal", "IddDiv", "CpuCurr", "CpuPower"
-				);
-			} else {
-				printf(
-						"%7s%7s%7s%7s%7s%9s%12s%8s%7s%7s%8s%9s\n",
-						"Pstate", "Status", "CpuFid", "CpuDid", "CpuVid", "CpuMult", "CpuFreq", "CpuVolt",
-						"IddVal", "IddDiv", "CpuCurr", "CpuPower"
-				);
-			}
+			printf("\nCore %d | P-State Limits (non-turbo): Highest: %d ; Lowest %d | Current P-State: %d\n", core, maxPstate, minPstate, curPstate);
+			printf(" Pstate Status CpuFid CpuDid CpuVid  CpuMult     CpuFreq CpuVolt IddVal IddDiv CpuCurr CpuPower");
+			printf("%s\n", (cpuFamily == AMD10H || cpuFamily == AMD11H) ? " NbVid NbVolt" : "");
 		}
 		if (!currentOnly) {
 			for (i = 0; i < pstates_count; i++) {
@@ -391,11 +381,10 @@ int main(int argc, char **argv) {
 }
 
 void northBridge(const int nvid) {
-	if (nvid > -1) {
+	if (quiet || cpuFamily == AMD17H || cpuFamily == AMD19H || nvid > -1) {
 		return;
 	}
 	int nbvid, nbfid, nbdid, nbpstates;
-	const uint32_t addresses[][4] = {{0x160, 0x164, 0x168, 0x16c}};
 	printf("Northbridge:\n");
 	switch (cpuFamily) {
 		case AMD10H:
@@ -431,6 +420,7 @@ void northBridge(const int nvid) {
 			if (cpuModel >= 0x00 && cpuModel <= 0x0f) {
 				_refclk = 2 * REFCLK;
 			}
+			const uint32_t addresses[][4] = {{0x160, 0x164, 0x168, 0x16c}};
 			for (int nbpstate = 0; nbpstate < nbpstates; nbpstate++) {
 				getAddr("18.5", addresses[0][nbpstate]);
 				nbvid = ((getDec("16:10") + (getDec("21:21") << 7)));
@@ -448,10 +438,6 @@ void northBridge(const int nvid) {
 				);
 			}
 			break;
-		case AMD17H:
-		case AMD19H:
-			printf("No P-States on Zen Northbridge.\n");
-			break;
 		default:
 			break;
 	}
@@ -460,10 +446,6 @@ void northBridge(const int nvid) {
 void getCpuInfo() {
 	FILE *fp;
 	char buff[8192];
-
-	if (debug && !quiet) {
-		printf("DEBUG: Checking CPU info.\n");
-	}
 
 	fp = fopen("/proc/cpuinfo", "r");
 	if (fp == NULL) {
@@ -493,10 +475,11 @@ void getCpuInfo() {
 	// Check for dual or quad CPU motherboards.
 	int testcores = (int) sysconf(_SC_NPROCESSORS_CONF);
 	if (testcores > cores) {
-		printf("Multi-CPU motherboard detected: CPU has %d cores, but there is a total %d cores in %d CPU sockets.\n", cores, testcores, testcores/cores);
+		if (!quiet) {
+			printf("Multi-CPU motherboard detected: CPU has %d cores, but there is a total %d cores in %d CPU sockets.\n", cores, testcores, testcores / cores);
+		}
 		cores = testcores;
 	}
-
 }
 
 void checkFamily() {
@@ -547,7 +530,8 @@ void checkFamily() {
 			break;
 		case AMD13H:
 		default:
-			error("Your CPU family is not supported by amdctl.");
+			fprintf(stderr, "Your CPU is not supported by amdctl (Family %xh ; Model %xh).\n", cpuFamily, cpuModel);
+			exit(EXIT_FAILURE);
 	}
 }
 
@@ -626,20 +610,10 @@ void printBaseFmt(const int idd) {
 			printf("      disabled\n");
 			return;
 		}
-		if (cpuFamily == AMD10H || cpuFamily == AMD11H) {
-			const int NbVid = getDec(NB_VID_BITS);
-			printf(
-				"%7d%7d%7d%7d%8.2fx%9.2fMHz%6.0fmV%6d%5.0fmV",
-				status, CpuFid, CpuDid, CpuVid, getCpuMultiplier(CpuFid, CpuDid),
-				getClockSpeed(CpuFid, CpuDid), CpuVolt, NbVid, vidTomV(NbVid)
-			);
-		} else {
-			printf(
-				"%7d%7d%7d%7d%8.2fx%9.2fMHz%6.0fmV",
-				status, CpuFid, CpuDid, CpuVid, getCpuMultiplier(CpuFid, CpuDid),
-				getClockSpeed(CpuFid, CpuDid), CpuVolt
-			);
-		}
+		printf(
+			"%7d%7d%7d%7d%8.2fx%9.2fMHz%6.0fmV",
+			status, CpuFid, CpuDid, CpuVid, getCpuMultiplier(CpuFid, CpuDid), getClockSpeed(CpuFid, CpuDid), CpuVolt
+		);
 	}
 	if (idd) {
 		int IddDiv = getDec(IDD_DIV_BITS), IddVal = getDec(IDD_VALUE_BITS);
@@ -666,6 +640,13 @@ void printBaseFmt(const int idd) {
 		}
 	}
 	if (!quiet) {
+		if (cpuFamily == AMD10H || cpuFamily == AMD11H) {
+			const int NbVid = getDec(NB_VID_BITS);
+			if (!idd) {
+				printf("%7s%7s%8s%9s", "", "", "", "");
+			}
+			printf("%6d%5.0fmV", NbVid, vidTomV(NbVid));
+		}
 		printf("\n");
 	}
 }
@@ -874,10 +855,10 @@ double vidTomV(const int vid) {
 	}
 
 	// https://github.com/mpollice/AmdMsrTweaker/blob/master/Info.cpp#L47
-	if (cpuFamily == AMD17H ||
-		cpuFamily == AMD19H ||
+	if (cpuFamily == AMD14H ||
 		(cpuFamily == AMD15H && ((cpuModel > 0x0f && cpuModel < 0x20) || (cpuModel > 0x2f && cpuModel < 0x40))) ||
-		cpuFamily == AMD14H) {
+		cpuFamily == AMD17H ||
+		cpuFamily == AMD19H) {
 		return (MAX_VOLTAGE - (vid * VID_DIVIDOR3));
 	}
 
