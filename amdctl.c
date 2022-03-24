@@ -481,11 +481,11 @@ void uwmsrCheck(const int allowWrites) {
 		fclose(fp);
 		error("Could not read /sys/module/msr/parameters/allow_writes");
 	}
-	if (!allowWrites) {
+	if (strstr(buff, "on")) {
 		fclose(fp);
-		if (strstr(buff, "on")) {
-			return;
-		}
+		return;
+	}
+	if (!allowWrites) {
 		fprintf(stderr, "ERROR: You are using Linux kernel >= 5.9 (%s) and userspace MSR writes are disabled.\n", buf.release);
 		fprintf(stderr, "Set the -m option for amdctl to enable MSR userspace writing.\n");
 		exit(EXIT_FAILURE);
