@@ -124,7 +124,7 @@ void checkFamily();
 void parseOpts(const int, char **);
 void usage();
 void fieldDescriptions();
-void kernelCheck(const int);
+void uwmsrCheck(const int);
 void printCpuStates();
 void printCpuPstate(const int);
 void printNbStates();
@@ -382,7 +382,7 @@ void parseOpts(const int argc, char **argv) {
 		error("You must pass the -p argument when passing the -x argument.");
 	}
 
-	kernelCheck(allowWrites);
+	uwmsrCheck(allowWrites);
 }
 
 void usage() {
@@ -451,7 +451,14 @@ void fieldDescriptions() {
 	exit(EXIT_SUCCESS);
 }
 
-void kernelCheck(const int allowWrites) {
+/**
+ * Checks if userspace writing to MSR is allowed.
+ * @param allowWrites -> If the user allows the program to enable /sys/module/msr/parameters/allow_writes
+ */
+void uwmsrCheck(const int allowWrites) {
+	if (geteuid() != 0) {
+		error("Root access is required to read or write from MSR's.");
+	}
 	struct utsname buf;
 	if (uname(&buf) != 0) {
 		error("Could not fetch Linux kernel information.");
