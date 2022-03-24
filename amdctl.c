@@ -16,19 +16,13 @@
  */
 
 #define _XOPEN_SOURCE 500
-#include <stdio.h>
 #include <fcntl.h>
-#include <unistd.h>
-#include <stdlib.h>
 #include <inttypes.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
-
-#include <linux/version.h>
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,9,0)
-	#pragma GCC warning "Incompatible kernel! MSR access deprecated by your Linux kernel!"
-	#pragma GCC warning "To use this program, set the kernel parameter msr.allow_writes=on"
-	#pragma GCC warning "Alternatively, at runtime, set /sys/module/msr/parameters/allow_writes to on ; sudo sh -c 'echo on > /sys/module/msr/parameters/allow_writes'"
-#endif
+#include <unistd.h>
+#include <sys/utsname.h>
 
 #define PSTATE_CURRENT_LIMIT 0xc0010061
 #define PSTATE_STATUS        0xc0010063
@@ -130,6 +124,7 @@ void checkFamily();
 void parseOpts(const int, char **);
 void usage();
 void fieldDescriptions();
+void kernelCheck(const int);
 void printCpuStates();
 void printCpuPstate(const int);
 void printNbStates();
@@ -259,9 +254,9 @@ void checkFamily() {
 }
 
 void parseOpts(const int argc, char **argv) {
-	int c, opts = 0, mVolt;
+	int allowWrites = 0, c, mVolt, opts = 0;
 
-	while ((c = getopt(argc, argv, "eghistxa:c:d:f:l:m:n:p:u:v:")) != -1) {
+	while ((c = getopt(argc, argv, "eghimstxa:c:d:f:n:p:u:v:")) != -1) {
 		opts++;
 		switch (c) {
 			case 'a': // Toggle PState status.
@@ -303,6 +298,9 @@ void parseOpts(const int argc, char **argv) {
 					fprintf(stderr, "Option -f must be a number 0 to %d", maxFid);
 					exit(EXIT_FAILURE);
 				}
+				break;
+			case 'm': // Kernel >= 5.9, check / set /sys/module/msr/parameters/allow_writes to on.
+				allowWrites = 1;
 				break;
 			case 'n': // Northbridge vid to set.
 				if (cpuFamily > AMD11H) {
@@ -383,6 +381,8 @@ void parseOpts(const int argc, char **argv) {
 	if (togglePs > -1 && pstate == -1) {
 		error("You must pass the -p argument when passing the -x argument.");
 	}
+
+	kernelCheck(allowWrites);
 }
 
 void usage() {
@@ -409,11 +409,11 @@ void usage() {
 	} else {
 		printf("    -f    Set the CPU frequency id (fid).\n");
 	}
-	printf("    -v    Set the CPU voltage id (vid).\n");
 	printf("    -a    Activate (1) or deactivate (0) P-state.\n");
 	printf("    -e    Show current P-State only. (Not available on 17h / 19h)\n");
 	printf("    -t    Preview changes without applying them to the CPU / north bridge.\n");
 	printf("    -u    Try to find voltage id by voltage (millivolts).\n");
+	printf("    -m    On Linux kernel >= 5.9, enables userspace MSR writing.\n");
 	printf("    -s    Hide all output / errors.\n");
 	printf("    -i    Show debug info.\n");
 	printf("    -h    Shows this information.\n");
@@ -449,6 +449,45 @@ void fieldDescriptions() {
 	printf("CpuPower:    The cpu power draw, in watts.\n");
 	printf("               Power draw is calculated as : (CpuCurr * CpuVolt) / 1000\n");
 	exit(EXIT_SUCCESS);
+}
+
+void kernelCheck(const int allowWrites) {
+	struct utsname buf;
+	if (uname(&buf) != 0) {
+		error("Could not fetch Linux kernel information.");
+	}
+	short major = -1, minor = -1;
+	sscanf(buf.release, "%hd.%hd", &major, &minor);
+	if (major == -1 || minor == -1) {
+		error("Unable to find current Linux kernel version.");
+	}
+	if (major < 5 || (major == 5 && minor < 9)) {
+		return;
+	}
+	FILE *fp;
+	char buff[3];
+	fp = fopen("/sys/module/msr/parameters/allow_writes", "r+");
+	if (fp == NULL) {
+		error("Could not open /sys/module/msr/parameters/allow_writes");
+	}
+	if (fgets(buff, 3, fp) == NULL) {
+		fclose(fp);
+		error("Could not read /sys/module/msr/parameters/allow_writes");
+	}
+	if (!allowWrites) {
+		fclose(fp);
+		if (strstr(buff, "on")) {
+			return;
+		}
+		fprintf(stderr, "ERROR: You are using Linux kernel >= 5.9 (%s) and userspace MSR writes are disabled.\n", buf.release);
+		fprintf(stderr, "Set the -m option for amdctl to enable MSR userspace writing.\n");
+		exit(EXIT_FAILURE);
+	}
+	int retVal = fputs("on", fp);
+	fclose(fp);
+	if (retVal < 0) {
+		error("Unable to enable userspace MSR writing.\n");
+	}
 }
 
 void printCpuStates() {
