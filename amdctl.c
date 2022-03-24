@@ -386,7 +386,8 @@ void parseOpts(const int argc, char **argv) {
 }
 
 void usage() {
-	printf("WARNING: This software can damage your CPU, use with caution.\n");
+	printf("WARNING: This software can damage your hardware, use with caution.\n");
+	printf("amdctl  Copyright (C) 2015-2022  kevinlekiller  GPL-3.0-or-later\n");
 	printf("Tool for under/over clocking/volting AMD CPU's.\n");
 	printf("Supported AMD CPU families: 10h,11h,12h,14h,15h,16h,17h,19h\n");
 	printf("These AMD CPU families are unsupported: 13h, 18h, anything older than 10h or newer than 19h\n");
