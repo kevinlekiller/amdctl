@@ -95,7 +95,7 @@
 #define VID_DIVIDOR2 12.5
 #define VID_DIVIDOR3 6.25
 
-static const unsigned short REFCLK     = 100;
+static const unsigned short REFCLK = 100;
 
 static char *NB_VID_BITS    = "31:25";
 static char *CPU_DID_BITS   = "8:6";
@@ -124,23 +124,23 @@ void checkFamily();
 void parseOpts(const int, char **);
 void usage();
 void fieldDescriptions();
-void uwmsrCheck(const int);
+void uwmsrCheck(const unsigned char);
 void printCpuStates();
-void printCpuPstate(const int);
+void printCpuPstate(const unsigned char);
 void printNbStates();
 int getDec(const char *);
-void rwMsrReg(const uint32_t, unsigned char);
-void rwPciReg(const char *, const uint32_t, unsigned char);
+void rwMsrReg(const uint32_t, const unsigned char);
+void rwPciReg(const char *, const uint32_t, const unsigned char);
 void updateBuffer(const char *, const int);
 void getVidType();
-double vidTomV(const int);
-int mVToVid(const float);
+unsigned short vidTomV(const unsigned short);
+short mVToVid(const float);
 float getDiv(const int);
-float getCpuMultiplier(const int, const int);
-float getClockSpeed(const int, const int);
+float getCpuMultiplier(const unsigned short, const unsigned short);
+float getClockSpeed(const unsigned short, const unsigned short);
 void error(const char *);
 
-int main(int argc, char **argv) {
+int main(const int argc, char **argv) {
 	getCpuInfo();
 	checkFamily();
 	parseOpts(argc, argv);
@@ -166,35 +166,38 @@ int main(int argc, char **argv) {
  */
 void getCpuInfo() {
 	FILE *fp;
-	char buff[8192];
+	char buff[128];
 
 	fp = fopen("/proc/cpuinfo", "r");
 	if (fp == NULL) {
 		error("Could not open /proc/cpuinfo for reading.");
 	}
 
-	while(fgets(buff, 8192, fp)) {
-		if (strstr(buff, "vendor_id") != NULL && strstr(buff, "AMD") == NULL) {
-			error("Processor is not an AMD?");
-		} else if (strstr(buff, "cpu family") != NULL) {
+	unsigned char foundVendor = 0;
+	while(fgets(buff, 128, fp)) {
+		if (strstr(buff, "vendor_id") != NULL && buff[0] == 'v' && strstr(buff, "AMD") != NULL) {
+			foundVendor = 1;
+		} else if (strstr(buff, "cpu family") != NULL && buff[0] == 'c') {
 			sscanf(buff, "%*s %*s : %hd", &cpuFamily);
-		} else if (strstr(buff, "model") != NULL) {
+		} else if (strstr(buff, "model") != NULL && buff[0] == 'm' && strstr(buff, "model name") == NULL) {
 			sscanf(buff, "%*s : %hd", &cpuModel);
-		} else if (strstr(buff, "siblings") != NULL) {
+		} else if (strstr(buff, "siblings") != NULL && buff[0] == 's') {
 			sscanf(buff, "%*s : %hd", &cores);
 		}
-		if (cpuFamily && cpuModel && cores) {
+		if (foundVendor && cpuFamily && cpuModel && cores) {
 			break;
 		}
 	}
-
 	fclose(fp);
+	if (!foundVendor) {
+		error("Processor is not an AMD?");
+	}
 	if (cpuModel == -1 || !cpuFamily || !cores) {
 		error("Could not find CPU family or model!");
 	}
 
 	// Check for dual or quad CPU motherboards.
-	int testcores = (int) sysconf(_SC_NPROCESSORS_CONF);
+	unsigned short testcores = (unsigned short) sysconf(_SC_NPROCESSORS_CONF);
 	if (testcores > cores) {
 		if (!quiet) {
 			printf("Multi-CPU motherboard detected: CPU has %d cores, but there is a total %d cores in %d CPU sockets.\n", cores, testcores, testcores / cores);
@@ -228,7 +231,7 @@ void checkFamily() {
 			MAIN_PLL_COFF = 100 * (getDec(MAIN_PLL_OP_FREQ_ID_BITS) + 16);
 			core = 0;
 			rwMsrReg(MSR_COFVID_STATUS, 1);
-			int tmpCofvid = getDec(COFVID_MIN_VID_BITS);
+			unsigned short tmpCofvid = getDec(COFVID_MIN_VID_BITS);
 			COFVID_MIN_VID = tmpCofvid ? tmpCofvid : COFVID_MIN_VID;
 			tmpCofvid = getDec(COFVID_MAX_VID_BITS);
 			COFVID_MAX_VID = tmpCofvid ? tmpCofvid : COFVID_MAX_VID;
@@ -262,7 +265,9 @@ void checkFamily() {
  * Checks options passed by user.
  */
 void parseOpts(const int argc, char **argv) {
-	int allowWrites = 0, c, mVolt, opts = 0;
+	int c;
+	unsigned char allowWrites = 0, opts = 0;
+	unsigned short mVolt;
 
 	while ((c = getopt(argc, argv, "eghimstxa:c:d:f:n:p:u:v:")) != -1) {
 		opts++;
@@ -276,14 +281,14 @@ void parseOpts(const int argc, char **argv) {
 			case 'c': // CPU core to work on.
 				core = atoi(optarg);
 				if (core >= cores || core < 0) {
-					fprintf(stderr, "Option -c must be less than total number of CPU cores (0 to %d).\n", cores - 1);
+					fprintf(stderr, "ERROR: Option -c must be less than total number of CPU cores (0 to %d).\n", cores - 1);
 					exit(EXIT_FAILURE);
 				}
 				break;
 			case 'd': // CPU did to set.
 				cpuDid = atoi(optarg);
 				if (cpuDid > DIDS || cpuDid < 0) {
-					fprintf(stderr, "ERROR: Option -d must be a number 0 to %d\n", DIDS);
+					fprintf(stderr, "ERROR: Option -d must be a number 0 to %d.\n", DIDS);
 					exit(EXIT_FAILURE);
 				}
 				break;
@@ -303,7 +308,7 @@ void parseOpts(const int argc, char **argv) {
 						break;
 				}
 				if (cpuFid > maxFid || cpuFid < 0) {
-					fprintf(stderr, "Option -f must be a number 0 to %d", maxFid);
+					fprintf(stderr, "ERROR: Option -f must be a number 0 to %d.\n", maxFid);
 					exit(EXIT_FAILURE);
 				}
 				break;
@@ -316,23 +321,24 @@ void parseOpts(const int argc, char **argv) {
 				}
 				nbVid = atoi(optarg);
 				if (nbVid < 0 || nbVid > MAX_VID) {
-					fprintf(stderr, "Option -n must be between 0 and %d.\n", MAX_VID);
+					fprintf(stderr, "ERROR: Option -n must be between 0 and %d.\n", MAX_VID);
 					exit(EXIT_FAILURE);
 				}
 				break;
 			case 'p': // CPU PState to work on.
 				pstate = atoi(optarg);
 				if (pstate > -1 && pstate >= PSTATES) {
-					fprintf(stderr, "Option -p must be less than total number of P-States (0 to %d).\n", PSTATES-1);
+					fprintf(stderr, "ERROR: Option -p must be less than total number of P-States (0 to %d).\n", PSTATES - 1);
 					exit(EXIT_FAILURE);
 				}
 				break;
 			case 'u': // Finds vid based on mVolt.
 				mVolt = atoi(optarg);
 				if (mVolt < 1 || mVolt > MAX_VOLTAGE) {
-					error("Option -n must be between 1 and 1550.");
+					fprintf(stderr, "ERROR: Option -n must be between 1 and %d.\n", MAX_VOLTAGE);
+					exit(EXIT_FAILURE);
 				}
-				int foundVid =  mVToVid(mVolt);
+				short foundVid = mVToVid(mVolt);
 				if (foundVid == -1) {
 					printf("Could not find a vid for %dmV.\n", mVolt);
 				} else {
@@ -461,6 +467,7 @@ void fieldDescriptions() {
 	printf("               On 17h, 19h (Zen) the current draw is calculated as : IddVal + IddDiv\n");
 	printf("CpuPower:    The cpu power draw, in watts.\n");
 	printf("               Power draw is calculated as : (CpuCurr * CpuVolt) / 1000\n");
+	printf("REFCLK:      Used for doing some calculations, this is a fixed value, not based on the value you set in the BIOS/UEFI.\n");
 	exit(EXIT_SUCCESS);
 }
 
@@ -468,7 +475,7 @@ void fieldDescriptions() {
  * Checks if userspace writing to MSR is allowed.
  * @param allowWrites -> If the user allows the program to enable /sys/module/msr/parameters/allow_writes
  */
-void uwmsrCheck(const int allowWrites) {
+void uwmsrCheck(const unsigned char allowWrites) {
 	if (geteuid() != 0) {
 		error("Root access is required to read or write from MSR's.");
 	}
@@ -512,7 +519,7 @@ void uwmsrCheck(const int allowWrites) {
 
 void printCpuStates() {
 	uint32_t tmp_pstates[PSTATES];
-	int pstates_count = 0;
+	unsigned char pstates_count = 0;
 	if (pstate == -1) {
 		for (; pstates_count < PSTATES; pstates_count++) {
 			tmp_pstates[pstates_count] = (MSR_PSTATE_BASE + pstates_count);
@@ -586,22 +593,22 @@ void printCpuStates() {
 	}
 }
 
-void printCpuPstate(const int idd) {
-	const int status = (idd ? getDec(PSTATE_EN_BITS) : 1);
-	const int CpuVid = getDec(CPU_VID_BITS), CpuDid = getDec(CPU_DID_BITS), CpuFid = getDec(CPU_FID_BITS);
-	const double CpuVolt = vidTomV(CpuVid);
+void printCpuPstate(const unsigned char idd) {
+	const unsigned char status = (idd ? getDec(PSTATE_EN_BITS) : 1);
+	const unsigned short CpuVid = getDec(CPU_VID_BITS), CpuDid = getDec(CPU_DID_BITS), CpuFid = getDec(CPU_FID_BITS);
+	const unsigned short CpuVolt = vidTomV(CpuVid);
 	if (!quiet) {
 		if ((cpuFamily == AMD17H || cpuFamily == AMD19H) && !CpuVid) {
 			printf(" disabled\n");
 			return;
 		}
 		printf(
-			"%7d%7d%7d%7d%8.2fx%9.2fMHz%6.0fmV",
+			"%7d%7d%7d%7d%8.2fx%9.2fMHz%6dmV",
 			status, CpuFid, CpuDid, CpuVid, getCpuMultiplier(CpuFid, CpuDid), getClockSpeed(CpuFid, CpuDid), CpuVolt
 		);
 	}
 	if (idd) {
-		int IddDiv = getDec(IDD_DIV_BITS), IddVal = getDec(IDD_VALUE_BITS);
+		short IddDiv = getDec(IDD_DIV_BITS), IddVal = getDec(IDD_VALUE_BITS);
 		switch (IddDiv) {
 			case 0:
 				IddDiv = 1;
@@ -630,7 +637,7 @@ void printCpuPstate(const int idd) {
 			if (!idd) {
 				printf("%7s%7s%8s%9s", "", "", "", "");
 			}
-			printf("%6d%5.0fmV", NbVid, vidTomV(NbVid));
+			printf("%6d%5hdmV", NbVid, vidTomV(NbVid));
 		}
 		printf("\n");
 	}
@@ -648,18 +655,19 @@ void printNbStates() {
 		default: // 10h and 11h NB pstates are in the CPU pstates.
 			return;
 	}
-	int nbvid, nbfid, nbdid, nbpstates;
+	unsigned short nbvid, nbfid, nbdid;
+	unsigned char nbpstates;
 	printf("Northbridge:\n");
 	switch (cpuFamily) {
 		case AMD12H:
 			//Pstate 0 = D18F3xDC
 			rwPciReg("18.3", 0xdc, 1);
 			nbvid = getDec("18:12");
-			printf("P-State 0: %d (vid), %5.0fmV\n", nbvid, vidTomV(nbvid));
+			printf("P-State 0: %d (vid), %5dmV\n", nbvid, vidTomV(nbvid));
 			//Pstate 1 = D18F6x90
 			rwPciReg("18.6", 0x90, 1);
 			nbvid = getDec("14:8");
-			printf("P-State 1: %d (vid), %5.0fmV\n", nbvid, vidTomV(nbvid));
+			printf("P-State 1: %d (vid), %5dmV\n", nbvid, vidTomV(nbvid));
 			break;
 		case AMD15H:
 		case AMD16H:
@@ -676,7 +684,7 @@ void printNbStates() {
 				return;
 			}
 			// We need to be able to display the REFCLK used for the calculations
-			int _refclk = REFCLK;
+			unsigned short _refclk = REFCLK;
 			if (cpuModel >= 0x00 && cpuModel <= 0x0f) {
 				_refclk = 2 * REFCLK;
 			}
@@ -687,7 +695,7 @@ void printNbStates() {
 				nbfid = getDec("7:7");
 				nbdid = getDec("6:1");
 				printf(
-					"P-State %d: %d (vid), %d (fid), %d (did), %5.0fmV, %dMHz (REFCLK = %dMHz)\n",
+					"P-State %d: %d (vid), %d (fid), %d (did), %6dmV, %dMHz (REFCLK = %dMHz)\n",
 					nbpstate,
 					nbvid,
 					nbfid,
@@ -705,10 +713,11 @@ void printNbStates() {
 
 int getDec(const char *loc) {
 	uint64_t temp = buffer;
-	int high, low, bits;
+	short high, low;
+	int bits;
 
 	// From msr-tools.
-	sscanf(loc, "%d:%d", &high, &low);
+	sscanf(loc, "%hd:%hd", &high, &low);
 	if (high == low) {
 		return (int) ((temp >> high)  & 1ULL);
 	} else {
@@ -726,7 +735,7 @@ int getDec(const char *loc) {
  * @param reg -> Register to read or write to.
  * @param read -> 1 to read data, 0 to write data.
  */
-void rwMsrReg(const uint32_t reg, unsigned char read) {
+void rwMsrReg(const uint32_t reg, const unsigned char read) {
 	char path[32];
 	int fh;
 
@@ -750,12 +759,12 @@ void rwMsrReg(const uint32_t reg, unsigned char read) {
 }
 
 /**
- * Read or write data to specified PCI location at specific register.
+ * Read or write data to specified PCI location at specified66 register.
  * @param loc -> PCI location to read or write to.
  * @param reg -> Register to read or write to.
  * @param read -> 1 to read data, 0 to write data.
  */
-void rwPciReg(const char * loc, const uint32_t reg, unsigned char read) {
+void rwPciReg(const char * loc, const uint32_t reg, const unsigned char read) {
 	char path[64];
 	int fh;
 
@@ -779,9 +788,9 @@ void rwPciReg(const char * loc, const uint32_t reg, unsigned char read) {
 }
 
 void updateBuffer(const char *loc, const int replacement) {
-	int low, high;
+	short high, low;
 
-	sscanf(loc, "%d:%d", &high, &low);
+	sscanf(loc, "%hd:%hd", &high, &low);
 	if (high == low) {
 		if (replacement) {
 			buffer |= (1ULL << high);
@@ -816,7 +825,7 @@ void getVidType() {
 }
 
 // Ported from k10ctl & AmdMsrTweaker
-double vidTomV(const int vid) {
+unsigned short vidTomV(const unsigned short vid) {
 	if (cpuFamily == AMD10H) {
 		if (pvi) {
 			if (vid < MIN_VID) {
@@ -838,8 +847,8 @@ double vidTomV(const int vid) {
 	return (MAX_VOLTAGE - (vid * VID_DIVIDOR2));
 }
 
-int mVToVid(const float mV) {
-	int tmpvid;
+short mVToVid(const float mV) {
+	unsigned short tmpvid;
 	for (tmpvid = 0; tmpvid <= MAX_VID; tmpvid++) {
 		if (vidTomV(tmpvid) == mV) {
 			break;
@@ -853,67 +862,67 @@ float getDiv(const int CpuDid) {
 		case AMD11H:
 			switch (CpuDid) {
 				case 1:
-					return 2;
+					return 2.0;
 				case 2:
-					return 4;
+					return 4.0;
 				case 3:
-					return 8;
+					return 8.0;
 				default:
-					return 1;
+					return 1.0;
 			}
 		case AMD12H:
 			switch (CpuDid) {
 				case 1:
 					return 1.5;
 				case 2:
-					return 2;
+					return 2.0;
 				case 3:
-					return 3;
+					return 3.0;
 				case 4:
-					return 4;
+					return 4.0;
 				case 5:
-					return 6;
+					return 6.0;
 				case 6:
-					return 8;
+					return 8.0;
 				case 7:
-					return 12;
+					return 12.0;
 				case 8:
-					return 16;
+					return 16.0;
 				case 0:
 				default:
-					return 1;
+					return 1.0;
 			}
 		default:
 			switch (CpuDid) {
 				case 1:
-					return 2;
+					return 2.0;
 				case 2:
-					return 4;
+					return 4.0;
 				case 3:
-					return 8;
+					return 8.0;
 				case 4:
-					return 16;
+					return 16.0;
 				default:
-					return 1;
+					return 1.0;
 			}
 	}
 }
 
-float getCpuMultiplier(const int CpuFid, const int CpuDid) {
+float getCpuMultiplier(const unsigned short CpuFid, const unsigned short CpuDid) {
 	switch (cpuFamily) {
 		case AMD10H:
 		case AMD15H:
 		case AMD16H:
-			return (CpuFid + 0x10) / (2 << CpuDid);
+			return (float) (CpuFid + 0x10) / (float) (2 << CpuDid);
 		case AMD11H:
-			return (CpuFid + 0x08) / (2 << CpuDid);
+			return (float) (CpuFid + 0x08) / (float) (2 << CpuDid);
 		case AMD12H:
-			return (CpuFid + 0x10) / getDiv(CpuDid);
+			return (float) (CpuFid + 0x10f) / getDiv(CpuDid);
 		case AMD14H:
 			return getClockSpeed(CpuFid, CpuDid) / (float) REFCLK;
 		case AMD17H:
 		case AMD19H:
-			return (CpuFid * VID_DIVIDOR1) / (CpuDid * VID_DIVIDOR2);
+			return (float) (CpuFid * VID_DIVIDOR1) / (float) (CpuDid * VID_DIVIDOR2);
 		default:
 			return 0;
 	}
@@ -922,23 +931,23 @@ float getCpuMultiplier(const int CpuFid, const int CpuDid) {
 /**
  * 14h uses DidMsd and DidLsd for calculation, pass DidMsd to CpuDid and DidLsd to CpuFid
  */
-float getClockSpeed(const int CpuFid, const int CpuDid) {
+float getClockSpeed(const unsigned short CpuFid, const unsigned short CpuDid) {
 	switch (cpuFamily) {
 		case AMD10H:
 		case AMD15H:
 		case AMD16H:
-			return ((REFCLK * (CpuFid + 0x10)) >> CpuDid);
+			return (float) ((REFCLK * (CpuFid + 0x10)) >> CpuDid);
 		case AMD11H:
-			return ((REFCLK * (CpuFid + 0x08)) >> CpuDid);
+			return (float) ((REFCLK * (CpuFid + 0x08)) >> CpuDid);
 		case AMD12H:
-			return (REFCLK * getCpuMultiplier(CpuFid, CpuDid));
+			return (float) REFCLK * getCpuMultiplier(CpuFid, CpuDid);
 		case AMD14H:
-			return MAIN_PLL_COFF / (CpuDid + CpuFid * 0.25 + 1.0f);
+			return (float) MAIN_PLL_COFF / ((float) CpuDid + (float) CpuFid * 0.25 + 1.0);
 		case AMD17H:
 		case AMD19H:
-			return CpuFid && CpuDid ? (((float)CpuFid / (float)CpuDid) * (float)REFCLK * 2.0) : 0.0;
+			return CpuFid && CpuDid ? ((float) CpuFid / (float) CpuDid) * ((float) REFCLK * 2.0) : 0.0;
 		default:
-			return 0;
+			return 0.0;
 	}
 }
 
