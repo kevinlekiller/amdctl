@@ -24,10 +24,10 @@
 #include <unistd.h>
 #include <sys/utsname.h>
 
-#define PSTATE_CURRENT_LIMIT 0xc0010061
-#define PSTATE_STATUS        0xc0010063
-#define PSTATE_BASE          0xc0010064
-#define COFVID_STATUS        0xc0010071
+#define MSR_PSTATE_CURRENT_LIMIT 0xc0010061
+#define MSR_PSTATE_STATUS        0xc0010063
+#define MSR_PSTATE_BASE          0xc0010064
+#define MSR_COFVID_STATUS        0xc0010071
 
 /* BIOS and Kernel Developer’s Guide (BKDG) For AMD Family 10h Processors
  * https://web.archive.org/web/20211030021345/https://www.amd.com/system/files/TechDocs/31116.pdf
@@ -129,9 +129,8 @@ void printCpuStates();
 void printCpuPstate(const int);
 void printNbStates();
 int getDec(const char *);
-void getReg(const uint32_t);
-void setReg(const uint32_t);
-void getAddr(const char *, const uint32_t);
+void rwMsrReg(const uint32_t, unsigned char);
+void rwPciReg(const char *, const uint32_t, unsigned char);
 void updateBuffer(const char *, const int);
 void getVidType();
 double vidTomV(const int);
@@ -225,10 +224,10 @@ void checkFamily() {
 			DIDS = 25;
 			CPU_DID_BITS   = "8:4"; // Acutally CPU_DID_MSD
 			CPU_FID_BITS   = "3:0"; // Actually CPU_DID_LSD
-			getAddr(ADDR_CLOCK_POWER_CONTROL, REG_CLOCK_POWER_CONTROL);
+			rwPciReg(ADDR_CLOCK_POWER_CONTROL, REG_CLOCK_POWER_CONTROL, 1);
 			MAIN_PLL_COFF = 100 * (getDec(MAIN_PLL_OP_FREQ_ID_BITS) + 16);
 			core = 0;
-			getReg(COFVID_STATUS);
+			rwMsrReg(MSR_COFVID_STATUS, 1);
 			int tmpCofvid = getDec(COFVID_MIN_VID_BITS);
 			COFVID_MIN_VID = tmpCofvid ? tmpCofvid : COFVID_MIN_VID;
 			tmpCofvid = getDec(COFVID_MAX_VID_BITS);
@@ -516,15 +515,15 @@ void printCpuStates() {
 	int pstates_count = 0;
 	if (pstate == -1) {
 		for (; pstates_count < PSTATES; pstates_count++) {
-			tmp_pstates[pstates_count] = (PSTATE_BASE + pstates_count);
+			tmp_pstates[pstates_count] = (MSR_PSTATE_BASE + pstates_count);
 		}
 	} else {
-		tmp_pstates[0] = PSTATE_BASE + pstate;
+		tmp_pstates[0] = MSR_PSTATE_BASE + pstate;
 		pstates_count = 1;
 	}
 
 	for (; core < cores; core++) {
-		getReg(PSTATE_CURRENT_LIMIT);
+		rwMsrReg(MSR_PSTATE_CURRENT_LIMIT, 1);
 		int i, curPstate = getDec(CUR_PSTATE_BITS), minPstate = getDec(PSTATE_MAX_VAL_BITS), maxPstate = getDec(CUR_PSTATE_LIMIT_BITS);
 		switch (cpuFamily) {
 			case AMD17H:
@@ -536,7 +535,7 @@ void printCpuStates() {
 				maxPstate++;
 				break;
 		}
-		getReg(PSTATE_STATUS);
+		rwMsrReg(MSR_PSTATE_STATUS, 1);
 		if (!quiet) {
 			printf("\nCore %d | P-State Limits (non-turbo): Highest: %d ; Lowest %d | Current P-State: %d\n", core, maxPstate, minPstate, curPstate);
 			printf(" Pstate Status CpuFid CpuDid CpuVid  CpuMult     CpuFreq CpuVolt IddVal IddDiv CpuCurr CpuPower");
@@ -547,7 +546,7 @@ void printCpuStates() {
 				if (!quiet) {
 					printf("%7d", (pstate >= 0 ? pstate : i));
 				}
-				getReg(tmp_pstates[i]);
+				rwMsrReg(tmp_pstates[i], 1);
 				if (nbVid > -1 || cpuVid > -1 || cpuFid > -1 || cpuDid > -1 || togglePs > -1) {
 					if (togglePs > -1) {
 						updateBuffer(PSTATE_EN_BITS, togglePs);
@@ -564,7 +563,7 @@ void printCpuStates() {
 					if (cpuDid > -1) {
 						updateBuffer(CPU_DID_BITS, cpuDid);
 					}
-					setReg(tmp_pstates[i]);
+					rwMsrReg(tmp_pstates[i], 0);
 				}
 				printCpuPstate(1);
 				if (i >= minPstate) {
@@ -580,7 +579,7 @@ void printCpuStates() {
 				if (!quiet) {
 					printf("%7s", "current");
 				}
-				getReg(COFVID_STATUS);
+				rwMsrReg(MSR_COFVID_STATUS, 1);
 				printCpuPstate(0);
 				break;
 		}
@@ -654,11 +653,11 @@ void printNbStates() {
 	switch (cpuFamily) {
 		case AMD12H:
 			//Pstate 0 = D18F3xDC
-			getAddr("18.3", 0xdc);
+			rwPciReg("18.3", 0xdc, 1);
 			nbvid = getDec("18:12");
 			printf("P-State 0: %d (vid), %5.0fmV\n", nbvid, vidTomV(nbvid));
 			//Pstate 1 = D18F6x90
-			getAddr("18.6", 0x90);
+			rwPciReg("18.6", 0x90, 1);
 			nbvid = getDec("14:8");
 			printf("P-State 1: %d (vid), %5.0fmV\n", nbvid, vidTomV(nbvid));
 			break;
@@ -683,7 +682,7 @@ void printNbStates() {
 			}
 			const uint32_t addresses[][4] = {{0x160, 0x164, 0x168, 0x16c}};
 			for (int nbpstate = 0; nbpstate < nbpstates; nbpstate++) {
-				getAddr("18.5", addresses[0][nbpstate]);
+				rwPciReg("18.5", addresses[0][nbpstate], 1);
 				nbvid = ((getDec("16:10") + (getDec("21:21") << 7)));
 				nbfid = getDec("7:7");
 				nbdid = getDec("6:1");
@@ -722,66 +721,61 @@ int getDec(const char *loc) {
 	}
 }
 
-void getReg(const uint32_t reg) {
+/**
+ * Read or write data to a MSR at specified register.
+ * @param reg -> Register to read or write to.
+ * @param read -> 1 to read data, 0 to write data.
+ */
+void rwMsrReg(const uint32_t reg, unsigned char read) {
 	char path[32];
 	int fh;
 
 	if (debug && !quiet) {
-		printf("DEBUG: Getting data from CPU %d at register %x\n", core, reg);
+		printf("DEBUG: %sing data from CPU %d at register %x\n", read ? "Read" : "Writ", core, reg);
 	}
 
 	sprintf(path, "/dev/cpu/%d/msr", core);
-	fh = open(path, O_RDONLY);
+	fh = open(path, read ? O_RDONLY : O_WRONLY);
 	if (fh < 0) {
-		error("Could not open CPU for reading! Is the msr kernel module loaded?");
+		fprintf(stderr, "ERROR: Could not open %s for %sing! Is the msr kernel module loaded?\n", path, read ? "read" : "writ");
+		exit(EXIT_FAILURE);
 	}
 
-	if (pread(fh, &buffer, 8, reg) != sizeof buffer) {
-		close(fh);
-		error("Could not read data from CPU!");
-	}
+	ssize_t psize = read ? pread(fh, &buffer, 8, reg) : pwrite(fh, &buffer, sizeof buffer, reg);
 	close(fh);
-}
-
-void setReg(const uint32_t reg) {
-	if (!testMode) {
-		int fh;
-		char path[32];
-
-		sprintf(path, "/dev/cpu/%d/msr", core);
-		fh = open(path, O_WRONLY);
-		if (fh < 0) {
-			error("Could not open CPU for writing! Is the msr kernel module loaded?");
-		}
-
-		if (pwrite(fh, &buffer, sizeof buffer, reg) != sizeof buffer) {
-			close(fh);
-			error("Could not write new value to CPU!");
-		}
-		close(fh);
+	if (psize != sizeof buffer) {
+		fprintf(stderr, "ERROR: Could not %s data to %s\n", read ? "read" : "write", path);
+		exit(EXIT_FAILURE);
 	}
 }
 
-void getAddr(const char * loc, const uint32_t reg) {
+/**
+ * Read or write data to specified PCI location at specific register.
+ * @param loc -> PCI location to read or write to.
+ * @param reg -> Register to read or write to.
+ * @param read -> 1 to read data, 0 to write data.
+ */
+void rwPciReg(const char * loc, const uint32_t reg, unsigned char read) {
 	char path[64];
 	int fh;
 
-	sprintf(path, "/proc/bus/pci/00/%s", loc);
-
 	if (debug && !quiet) {
-		printf("DEBUG: Getting data from PCI config space address %x at location %s\n", reg, path);
+		printf("DEBUG: %sing data from PCI config space address %x at location %s\n", read ? "Read" : "Writ", reg, path);
 	}
 
-	fh = open(path, O_RDONLY);
+	sprintf(path, "/proc/bus/pci/00/%s", loc);
+	fh = open(path, read ? O_RDONLY : O_WRONLY);
 	if (fh < 0) {
-		error("Could not open PCI config space for reading!");
+		fprintf(stderr, "ERROR: Could not open PCI config space for %sing!\n", read ? "read" : "writ");
+		exit(EXIT_FAILURE);
 	}
 
-	if (pread(fh, &buffer, 8, reg) != sizeof buffer) {
-		close(fh);
-		error("Could not read data from PCI config space!");
-	}
+	ssize_t psize = read ? pread(fh, &buffer, 8, reg) : pwrite(fh, &buffer, sizeof buffer, reg);
 	close(fh);
+	if (psize != sizeof buffer) {
+		fprintf(stderr, "ERROR: Could not %s data from PCI config space!\n", read ? "read" : "write");
+		exit(EXIT_FAILURE);
+	}
 }
 
 void updateBuffer(const char *loc, const int replacement) {
