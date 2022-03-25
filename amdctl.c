@@ -162,6 +162,9 @@ int main(int argc, char **argv) {
 	return EXIT_SUCCESS;
 }
 
+/**
+ * Sets some variables with info from /proc/cpuinfo
+ */
 void getCpuInfo() {
 	FILE *fp;
 	char buff[8192];
@@ -201,6 +204,9 @@ void getCpuInfo() {
 	}
 }
 
+/**
+ * Sets some variables based on current CPU model / family.
+ */
 void checkFamily() {
 	switch (cpuFamily) {
 		case AMD10H:
@@ -253,6 +259,9 @@ void checkFamily() {
 	}
 }
 
+/**
+ * Checks options passed by user.
+ */
 void parseOpts(const int argc, char **argv) {
 	int allowWrites = 0, c, mVolt, opts = 0;
 
@@ -324,12 +333,10 @@ void parseOpts(const int argc, char **argv) {
 				if (mVolt < 1 || mVolt > MAX_VOLTAGE) {
 					error("Option -n must be between 1 and 1550.");
 				}
-				if (!quiet) {
-					int foundVid =  mVToVid(mVolt);
-					if (foundVid == -1) {
-						printf("Could not find a vid for %dmV.\n", mVolt);
-						exit(EXIT_SUCCESS);
-					}
+				int foundVid =  mVToVid(mVolt);
+				if (foundVid == -1) {
+					printf("Could not find a vid for %dmV.\n", mVolt);
+				} else {
 					printf("Found vid %d for for %dmV.\n", foundVid, mVolt);
 				}
 				exit(EXIT_SUCCESS);
@@ -385,6 +392,9 @@ void parseOpts(const int argc, char **argv) {
 	uwmsrCheck(allowWrites);
 }
 
+/**
+ * Prints help to STDOUT.
+ */
 void usage() {
 	printf("WARNING: This software can damage your hardware, use with caution.\n");
 	printf("amdctl  Copyright (C) 2015-2022  kevinlekiller  GPL-3.0-or-later\n");
@@ -430,6 +440,9 @@ void usage() {
 	exit(EXIT_SUCCESS);
 }
 
+/**
+ * Prints descriptions of names.
+ */
 void fieldDescriptions() {
 	printf("Core:        Cpu core.\n");
 	printf("P-State:     Power state, lower number means higher performance, 'current' means the P-State the CPU is in currently.\n");
@@ -534,7 +547,6 @@ void printCpuStates() {
 				if (!quiet) {
 					printf("%7d", (pstate >= 0 ? pstate : i));
 				}
-
 				getReg(tmp_pstates[i]);
 				if (nbVid > -1 || cpuVid > -1 || cpuFid > -1 || cpuDid > -1 || togglePs > -1) {
 					if (togglePs > -1) {
@@ -603,14 +615,14 @@ void printCpuPstate(const int idd) {
 				break;
 			case 3:
 			default:
-				if (!quiet) {
-					printf("\n");
-				}
-				return;
+				IddDiv = -1;
+				break;
 		}
-		float cpuCurrDraw = (cpuFamily == AMD17H || cpuFamily == AMD19H) ? IddVal + IddDiv : ((float) IddVal / (float) IddDiv);
-		if (!quiet) {
-			printf("%7d%7d%7.2fA%8.2fW", IddVal, IddDiv, cpuCurrDraw, ((cpuCurrDraw * CpuVolt) / 1000));
+		if (IddDiv != -1) {
+			float cpuCurrDraw = (cpuFamily == AMD17H || cpuFamily == AMD19H) ? IddVal + IddDiv : ((float) IddVal / (float) IddDiv);
+			if (!quiet) {
+				printf("%7d%7d%7.2fA%8.2fW", IddVal, IddDiv, cpuCurrDraw, ((cpuCurrDraw * CpuVolt) / 1000));
+			}
 		}
 	}
 	if (!quiet) {
@@ -630,14 +642,12 @@ void printNbStates() {
 		return;
 	}
 	switch (cpuFamily) {
-		case AMD10H: // 10h and 11h NB pstates are in the CPU pstates.
-		case AMD11H:
-		case AMD14H:
-		case AMD17H:
-		case AMD19H:
-			return;
-		default:
+		case AMD12H:
+		case AMD15H:
+		case AMD16H:
 			break;
+		default: // 10h and 11h NB pstates are in the CPU pstates.
+			return;
 	}
 	int nbvid, nbfid, nbdid, nbpstates;
 	printf("Northbridge:\n");
@@ -784,10 +794,8 @@ void updateBuffer(const char *loc, const int replacement) {
 		} else {
 			buffer &= ~(1ULL << high);
 		}
-	} else {
-		if (replacement < (2 << (high - low))) {
-			buffer = (buffer & ((1 << low) - (2 << high) - 1)) | (replacement << low);
-		}
+	} else if (replacement < (2 << (high - low))) {
+		buffer = (buffer & ((1 << low) - (2 << high) - 1)) | (replacement << low);
 	}
 }
 
@@ -929,7 +937,7 @@ float getClockSpeed(const int CpuFid, const int CpuDid) {
 		case AMD11H:
 			return ((REFCLK * (CpuFid + 0x08)) >> CpuDid);
 		case AMD12H:
-			return (REFCLK * (CpuFid + 0x10) / getDiv(CpuDid));
+			return (REFCLK * getCpuMultiplier(CpuFid, CpuDid));
 		case AMD14H:
 			return MAIN_PLL_COFF / (CpuDid + CpuFid * 0.25 + 1.0f);
 		case AMD17H:
