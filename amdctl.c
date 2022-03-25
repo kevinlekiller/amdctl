@@ -637,7 +637,7 @@ void printCpuPstate(const unsigned char idd) {
 			if (!idd) {
 				printf("%7s%7s%8s%9s", "", "", "", "");
 			}
-			printf("%6d%5hdmV", NbVid, vidTomV(NbVid));
+			printf("%6d%5dmV", NbVid, vidTomV(NbVid));
 		}
 		printf("\n");
 	}
@@ -759,7 +759,7 @@ void rwMsrReg(const uint32_t reg, const unsigned char read) {
 }
 
 /**
- * Read or write data to specified PCI location at specified66 register.
+ * Read or write data to specified PCI location at specified register.
  * @param loc -> PCI location to read or write to.
  * @param reg -> Register to read or write to.
  * @param read -> 1 to read data, 0 to write data.
@@ -917,7 +917,7 @@ float getCpuMultiplier(const unsigned short CpuFid, const unsigned short CpuDid)
 		case AMD11H:
 			return (float) (CpuFid + 0x08) / (float) (2 << CpuDid);
 		case AMD12H:
-			return (float) (CpuFid + 0x10f) / getDiv(CpuDid);
+			return (float) (CpuFid + 0x10) / getDiv(CpuDid);
 		case AMD14H:
 			return getClockSpeed(CpuFid, CpuDid) / (float) REFCLK;
 		case AMD17H:

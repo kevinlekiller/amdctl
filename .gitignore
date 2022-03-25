@@ -3,3 +3,4 @@
 *.orig
 amdctl
 /.idea/
+.amdctl.c.kate-swp
