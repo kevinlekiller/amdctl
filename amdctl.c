@@ -125,7 +125,7 @@ void parseOpts(const int, char **);
 void usage();
 void fieldDescriptions();
 void uwmsrCheck(const unsigned char);
-void printCpuStates();
+void wrCpuStates();
 void printCpuPstate(const unsigned char);
 void printNbStates();
 int getDec(const char *);
@@ -136,7 +136,7 @@ void getVidType();
 unsigned short vidTomV(const unsigned short);
 short mVToVid(const float);
 float getDiv(const int);
-float getCpuMultiplier(const unsigned short, const unsigned short);
+float getCoreMultiplier(const unsigned short, const unsigned short);
 float getClockSpeed(const unsigned short, const unsigned short);
 void error(const char *);
 
@@ -155,7 +155,7 @@ int main(const int argc, char **argv) {
 	} else {
 		cores = core + 1;
 	}
-	printCpuStates();
+	wrCpuStates();
 	printNbStates();
 
 	return EXIT_SUCCESS;
@@ -517,14 +517,17 @@ void uwmsrCheck(const unsigned char allowWrites) {
 	}
 }
 
-void printCpuStates() {
+/**
+ * Iterate CPU cores, get/set PState values.
+ */
+void wrCpuStates() {
 	uint32_t tmp_pstates[PSTATES];
 	unsigned char pstates_count = 0;
 	if (pstate == -1) {
 		for (; pstates_count < PSTATES; pstates_count++) {
 			tmp_pstates[pstates_count] = (MSR_PSTATE_BASE + pstates_count);
 		}
-	} else {
+	} else { // User only requested 1 PState.
 		tmp_pstates[0] = MSR_PSTATE_BASE + pstate;
 		pstates_count = 1;
 	}
@@ -593,6 +596,10 @@ void printCpuStates() {
 	}
 }
 
+/**
+ * Print CPU PState data to STDOUT.
+ * @param idd -> Print CPU current/power draw or not.
+ */
 void printCpuPstate(const unsigned char idd) {
 	const unsigned char status = (idd ? getDec(PSTATE_EN_BITS) : 1);
 	const unsigned short CpuVid = getDec(CPU_VID_BITS), CpuDid = getDec(CPU_DID_BITS), CpuFid = getDec(CPU_FID_BITS);
@@ -604,7 +611,7 @@ void printCpuPstate(const unsigned char idd) {
 		}
 		printf(
 			"%7d%7d%7d%7d%8.2fx%9.2fMHz%6dmV",
-			status, CpuFid, CpuDid, CpuVid, getCpuMultiplier(CpuFid, CpuDid), getClockSpeed(CpuFid, CpuDid), CpuVolt
+			status, CpuFid, CpuDid, CpuVid, getCoreMultiplier(CpuFid, CpuDid), getClockSpeed(CpuFid, CpuDid), CpuVolt
 		);
 	}
 	if (idd) {
@@ -643,6 +650,9 @@ void printCpuPstate(const unsigned char idd) {
 	}
 }
 
+/**
+ * Print North Bridge PState data to STDOUT.
+ */
 void printNbStates() {
 	if (quiet) {
 		return;
@@ -711,6 +721,11 @@ void printNbStates() {
 	}
 }
 
+/**
+ * Get decimal value from specified location in buffer.
+ * @param loc -> Location in buffer to get value.
+ * @return int -> The decimal value.
+ */
 int getDec(const char *loc) {
 	uint64_t temp = buffer;
 	short high, low;
@@ -731,7 +746,7 @@ int getDec(const char *loc) {
 }
 
 /**
- * Read or write data to a MSR at specified register.
+ * Read or write data (from buffer variable) to a MSR at specified register.
  * @param reg -> Register to read or write to.
  * @param read -> 1 to read data, 0 to write data.
  */
@@ -759,7 +774,7 @@ void rwMsrReg(const uint32_t reg, const unsigned char read) {
 }
 
 /**
- * Read or write data to specified PCI location at specified register.
+ * Read or write data (from buffer variable) to specified PCI location at specified register.
  * @param loc -> PCI location to read or write to.
  * @param reg -> Register to read or write to.
  * @param read -> 1 to read data, 0 to write data.
@@ -787,6 +802,11 @@ void rwPciReg(const char * loc, const uint32_t reg, const unsigned char read) {
 	}
 }
 
+/**
+ * Modify buffer variable with replacement data at specified location.
+ * @param loc -> Location in the buffer to overwrite data.
+ * @param replacement -> New data to insert.
+ */
 void updateBuffer(const char *loc, const int replacement) {
 	short high, low;
 
@@ -802,7 +822,9 @@ void updateBuffer(const char *loc, const int replacement) {
 	}
 }
 
-// Ported from k10ctl
+/**
+ * Check if CPU uses serial or parallel voltage encodings, sets pvi variable accordingly.
+ */
 void getVidType() {
 	int fh;
 	char buff[256];
@@ -824,7 +846,11 @@ void getVidType() {
 	pvi = ((buff[0xa1] & 1) == 1);
 }
 
-// Ported from k10ctl & AmdMsrTweaker
+/**
+ * Converts vid to millivolts.
+ * @param vid -> The vid to convert.
+ * @return short -> Calculated millivolts.
+ */
 unsigned short vidTomV(const unsigned short vid) {
 	if (cpuFamily == AMD10H) {
 		if (pvi) {
@@ -847,6 +873,11 @@ unsigned short vidTomV(const unsigned short vid) {
 	return (MAX_VOLTAGE - (vid * VID_DIVIDOR2));
 }
 
+/**
+ * Converts millivolts to vid.
+ * @param mV -> Millivolts to convert.
+ * @return short -> The found vid or -1 on failure.
+ */
 short mVToVid(const float mV) {
 	unsigned short tmpvid;
 	for (tmpvid = 0; tmpvid <= MAX_VID; tmpvid++) {
@@ -857,6 +888,11 @@ short mVToVid(const float mV) {
 	return (vidTomV(tmpvid) == mV ? tmpvid : -1);
 }
 
+/**
+ * Returns a divisor based on the provided did, used for calculating CPU multiplier.
+ * @param CpuDid -> The input did.
+ * @return float -> The divisor.
+ */
 float getDiv(const int CpuDid) {
 	switch (cpuFamily) {
 		case AMD11H:
@@ -908,7 +944,13 @@ float getDiv(const int CpuDid) {
 	}
 }
 
-float getCpuMultiplier(const unsigned short CpuFid, const unsigned short CpuDid) {
+/**
+ * Calculates the CPU core multiplier.
+ * @param CpuFid -> The core frequency id.
+ * @param CpuDid -> The core divisor id.
+ * @return float -> The core multiplier.
+ */
+float getCoreMultiplier(const unsigned short CpuFid, const unsigned short CpuDid) {
 	switch (cpuFamily) {
 		case AMD10H:
 		case AMD15H:
@@ -929,7 +971,11 @@ float getCpuMultiplier(const unsigned short CpuFid, const unsigned short CpuDid)
 }
 
 /**
- * 14h uses DidMsd and DidLsd for calculation, pass DidMsd to CpuDid and DidLsd to CpuFid
+ * Calculates the core clock speed.
+ * @param CpuFid -> The core frequency id.
+ * @param CpuDid -> The core divisor id.
+ * @return float -> The clock speed in MHz.
+ * @NOTE: 14h uses DidMsd and DidLsd for calculation, pass DidMsd to CpuDid and DidLsd to CpuFid
  */
 float getClockSpeed(const unsigned short CpuFid, const unsigned short CpuDid) {
 	switch (cpuFamily) {
@@ -940,7 +986,7 @@ float getClockSpeed(const unsigned short CpuFid, const unsigned short CpuDid) {
 		case AMD11H:
 			return (float) ((REFCLK * (CpuFid + 0x08)) >> CpuDid);
 		case AMD12H:
-			return (float) REFCLK * getCpuMultiplier(CpuFid, CpuDid);
+			return (float) REFCLK * getCoreMultiplier(CpuFid, CpuDid);
 		case AMD14H:
 			return (float) MAIN_PLL_COFF / ((float) CpuDid + (float) CpuFid * 0.25 + 1.0);
 		case AMD17H:
@@ -951,6 +997,10 @@ float getClockSpeed(const unsigned short CpuFid, const unsigned short CpuDid) {
 	}
 }
 
+/**
+ * Print message to stderr and exit.
+ * @param message -> Message to print.
+ */
 void error(const char *message) {
 	if (!quiet) {
 		fprintf(stderr, "ERROR: %s\n", message);
