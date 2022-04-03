@@ -116,8 +116,8 @@ static signed char         MAIN_PLL_COFF           = -1;
 
 static uint64_t buffer;
 static unsigned char currentOnly = 0, debug = 0, DIDS = 5, quiet = 0, PSTATES = 8, pvi = 0, testMode = 0;
-static signed char cpuDid = -1, cpuFid = -1, cpuVid = -1, nbVid = -1, togglePs = -1;
-static signed short core = -1, cores = 0, cpuFamily = 0, cpuModel = -1, pstate = -1;
+static signed char cpuDid = -1, togglePs = -1;
+static signed short core = -1, cores = 0, cpuFamily = 0, cpuFid = -1, cpuModel = -1, cpuVid = -1, nbVid = -1, pstate = -1;
 
 void getCpuInfo();
 void checkFamily();
@@ -308,7 +308,7 @@ void parseOpts(const int argc, char **argv) {
 						break;
 				}
 				if (cpuFid > maxFid || cpuFid < 0) {
-					fprintf(stderr, "ERROR: Option -f must be a number 0 to %d.\n", maxFid);
+					fprintf(stderr, "ERROR: Option -f must be a number 0 to %d. You supplied %d.\n", maxFid, cpuFid);
 					exit(EXIT_FAILURE);
 				}
 				break;
@@ -758,6 +758,10 @@ void rwMsrReg(const uint32_t reg, const unsigned char read) {
 		printf("DEBUG: %sing data from CPU %d at register %x\n", read ? "Read" : "Writ", core, reg);
 	}
 
+	if (!read && testMode) {
+		return;
+	}
+
 	sprintf(path, "/dev/cpu/%d/msr", core);
 	fh = open(path, read ? O_RDONLY : O_WRONLY);
 	if (fh < 0) {
@@ -785,6 +789,10 @@ void rwPciReg(const char * loc, const uint32_t reg, const unsigned char read) {
 
 	if (debug && !quiet) {
 		printf("DEBUG: %sing data from PCI config space address %x at location %s\n", read ? "Read" : "Writ", reg, path);
+	}
+
+	if (!read && testMode) {
+		return;
 	}
 
 	sprintf(path, "/proc/bus/pci/00/%s", loc);
