@@ -197,7 +197,7 @@ void getCpuInfo() {
 	}
 
 	// Check for dual or quad CPU motherboards.
-	unsigned short testcores = (unsigned short) sysconf(_SC_NPROCESSORS_CONF);
+	unsigned short testcores = (unsigned short) sysconf(_SC_NPROCESSORS_ONLN);
 	if (testcores > cores) {
 		if (!quiet) {
 			printf("Multi-CPU motherboard detected: CPU has %d cores, but there is a total %d cores in %d CPU sockets.\n", cores, testcores, testcores / cores);
