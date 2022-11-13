@@ -659,6 +659,7 @@ void printNbStates() {
 	}
 	switch (cpuFamily) {
 		case AMD12H:
+		case AMD14H:
 		case AMD15H:
 		case AMD16H:
 			break;
@@ -670,6 +671,7 @@ void printNbStates() {
 	printf("Northbridge:\n");
 	switch (cpuFamily) {
 		case AMD12H:
+		case AMD14H:
 			//Pstate 0 = D18F3xDC
 			rwPciReg("18.3", 0xdc, 1);
 			nbvid = getDec("18:12");
