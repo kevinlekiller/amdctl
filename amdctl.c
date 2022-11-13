@@ -659,6 +659,7 @@ void printNbStates() {
 	}
 	switch (cpuFamily) {
 		case AMD12H:
+		case AMD14H:
 		case AMD15H:
 		case AMD16H:
 			break;
@@ -670,6 +671,7 @@ void printNbStates() {
 	printf("Northbridge:\n");
 	switch (cpuFamily) {
 		case AMD12H:
+		case AMD14H:
 			//Pstate 0 = D18F3xDC
 			rwPciReg("18.3", 0xdc, 1);
 			nbvid = getDec("18:12");
@@ -871,8 +873,7 @@ unsigned short vidTomV(const unsigned short vid) {
 	}
 
 	// https://github.com/mpollice/AmdMsrTweaker/blob/master/Info.cpp#L47
-	if (cpuFamily == AMD14H ||
-		(cpuFamily == AMD15H && ((cpuModel > 0x0f && cpuModel < 0x20) || (cpuModel > 0x2f && cpuModel < 0x40))) ||
+	if ((cpuFamily == AMD15H && ((cpuModel > 0x0f && cpuModel < 0x20) || (cpuModel > 0x2f && cpuModel < 0x40))) ||
 		cpuFamily == AMD17H ||
 		cpuFamily == AMD19H) {
 		return (MAX_VOLTAGE - (vid * VID_DIVIDOR3));
