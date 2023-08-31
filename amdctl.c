@@ -141,9 +141,9 @@ float getClockSpeed(const unsigned short, const unsigned short);
 void error(const char *);
 
 int main(const int argc, char **argv) {
+	parseOpts(argc, argv);
 	getCpuInfo();
 	checkFamily();
-	parseOpts(argc, argv);
 	if (!quiet) {
 		printf("Detected CPU model %xh, from family %xh with %d CPU cores (REFCLK = %dMHz ; Voltage ID Encodings: %s).\n", cpuModel, cpuFamily, cores, REFCLK, (pvi ? "PVI (parallel)" : "SVI (serial)"));
 		if (nbVid > -1 || cpuVid > -1 || cpuFid > -1 || cpuDid > -1 || togglePs > -1) {
