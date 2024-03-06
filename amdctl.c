@@ -112,7 +112,21 @@ static char *IDD_VALUE_BITS = "39:32";
 static const unsigned char REG_CLOCK_POWER_CONTROL =  0xd4;
 static unsigned char       COFVID_MAX_VID          =  1;
 static unsigned char       COFVID_MIN_VID          =  128;
-static signed char         MAIN_PLL_COFF           = -1;
+static signed short        MAIN_PLL_COFF           = -1;
+
+static char *CPU_NBPST_BITS        = "22:22";
+static char *NUM_BOOST_STATES_BITS = "4:2";
+static char *NB_PS0_VID_BITS       = "18:12";
+static char *NB_PS1_VID_BITS       = "14:8";
+static char *NB_IDD_VALUE_BITS     = "31:24";
+static char *NB_IDD_DIV_BITS       = "23:22";
+static char *NB_VID7_BITS          = "21:21";
+static char *MEM_PSTATE_BITS       = "18:18";
+static char *NB_VID60_BITS         = "16:10";
+static char *NB_DID_BITS           = "7:7";
+static char *NB_FID_BITS           = "6:1";
+static char *NB_PSTATE_EN_BITS     = "0:0";
+static signed char nbPst = -1, maxNbPst = 0;
 
 static uint64_t buffer;
 static unsigned char currentOnly = 0, debug = 0, DIDS = 5, quiet = 0, PSTATES = 8, pvi = 0, testMode = 0;
@@ -214,6 +228,7 @@ void checkFamily() {
 		case AMD10H:
 			getVidType();
 			PSTATES = 5;
+			NUM_BOOST_STATES_BITS = "2:2";
 			break;
 		case AMD11H:
 			DIDS = 4;
@@ -240,10 +255,14 @@ void checkFamily() {
 		case AMD15H:
 			if (cpuModel > 0x0f) {
 				NB_VID_BITS = "31:24";
+			} else {
+				NB_FID_BITS = "5:1";
 			}
+			maxNbPst = 1;
 			break;
 		case AMD16H:
 			NB_VID_BITS = "31:24";
+			maxNbPst = 1;
 			break;
 		case AMD17H:
 		case AMD19H:
@@ -315,7 +334,15 @@ void parseOpts(const int argc, char **argv) {
 			case 'm': // Kernel >= 5.9, check / set /sys/module/msr/parameters/allow_writes to on.
 				allowWrites = 1;
 				break;
-			case 'n': // Northbridge vid to set.
+			case 'n': // Northbridge vid/pstate to set.
+				if (maxNbPst) {
+					nbPst = atoi(optarg);
+					if (nbPst < 0 || nbPst > maxNbPst) {
+						fprintf(stderr, "ERROR: Option -n must be between 0 and %d.\n", maxNbPst);
+						exit(EXIT_FAILURE);
+					}
+					break;
+				}
 				if (cpuFamily > AMD11H) {
 					error("Currently amdctl can only change the NB vid on 10h and 11h CPU's.");
 				}
@@ -414,6 +441,8 @@ void usage() {
 	printf("    -v    Set CPU voltage id (vid).\n");
 	if (cpuFamily == AMD10H || cpuFamily == AMD11H) {
 		printf("    -n    Set north bridge voltage id (vid).\n");
+	} else if (maxNbPst) {
+		printf("    -n    Set north bridge P-State.\n");
 	}
 	if (cpuFamily == AMD14H) {
 		printf("    -d    Set the CPU divisor ID most significant digit (CpuDidMSD).\n");
@@ -460,6 +489,7 @@ void fieldDescriptions() {
 	printf("CpuVolt:     Core voltage, in millivolts.\n");
 	printf("NbVid:       North bridge voltage ID.\n");
 	printf("NbVolt:      North bridge voltage, in millivolts.\n");
+	printf("NbPst:       North bridge P-State, lower number means higher performance.\n");
 	printf("IddVal:      Core current (intensity) ID. Used to calculate cpu current draw and power draw.\n");
 	printf("IddDiv       Core current (intensity) dividor.\n");
 	printf("CpuCurr:     The cpu current draw, in amps.\n");
@@ -467,7 +497,14 @@ void fieldDescriptions() {
 	printf("               On 17h, 19h (Zen) the current draw is calculated as : IddVal + IddDiv\n");
 	printf("CpuPower:    The cpu power draw, in watts.\n");
 	printf("               Power draw is calculated as : (CpuCurr * CpuVolt) / 1000\n");
-	printf("REFCLK:      Used for doing some calculations, this is a fixed value, not based on the value you set in the BIOS/UEFI.\n");
+	printf("NbFid:       North bridge frequency ID.\n");
+	printf("NbDid:       North bridge divisor ID.\n");
+	printf("NbFreq:      North bridge clock speed, in megahertz.\n");
+	printf("NbIddVal:    North bridge current (intensity) ID.\n");
+	printf("NbIddDiv:    North bridge current (intensity) dividor.\n");
+	printf("NbCurr:      North bridge current draw, in amps.\n");
+	printf("NbPower:     North bridge power draw, in watts.\n");
+	printf("MemPst:      Memory P-State, lower number means higher performance.\n");
 	exit(EXIT_SUCCESS);
 }
 
@@ -522,7 +559,7 @@ void uwmsrCheck(const unsigned char allowWrites) {
  */
 void wrCpuStates() {
 	uint32_t tmp_pstates[PSTATES];
-	unsigned char pstates_count = 0;
+	unsigned char pstates_count = 0, bstates = 0;
 	if (pstate == -1) {
 		for (; pstates_count < PSTATES; pstates_count++) {
 			tmp_pstates[pstates_count] = (MSR_PSTATE_BASE + pstates_count);
@@ -531,25 +568,20 @@ void wrCpuStates() {
 		tmp_pstates[0] = MSR_PSTATE_BASE + pstate;
 		pstates_count = 1;
 	}
+	if (cpuFamily <= AMD16H) {
+		rwPciReg("18.4", 0x15c, 1);
+		bstates = getDec(NUM_BOOST_STATES_BITS);
+	}
 
 	for (; core < cores; core++) {
 		rwMsrReg(MSR_PSTATE_CURRENT_LIMIT, 1);
-		int i, curPstate = getDec(CUR_PSTATE_BITS), minPstate = getDec(PSTATE_MAX_VAL_BITS), maxPstate = getDec(CUR_PSTATE_LIMIT_BITS);
-		switch (cpuFamily) {
-			case AMD17H:
-			case AMD19H:
-				break;
-			default:
-				curPstate++;
-				minPstate++;
-				maxPstate++;
-				break;
-		}
+		int i, curPstate, minPstate = bstates + getDec(PSTATE_MAX_VAL_BITS), maxPstate = bstates + getDec(CUR_PSTATE_LIMIT_BITS);
 		rwMsrReg(MSR_PSTATE_STATUS, 1);
+		curPstate = bstates + getDec(CUR_PSTATE_BITS);
 		if (!quiet) {
 			printf("\nCore %d | P-State Limits (non-turbo): Highest: %d ; Lowest %d | Current P-State: %d\n", core, maxPstate, minPstate, curPstate);
 			printf(" Pstate Status CpuFid CpuDid CpuVid  CpuMult     CpuFreq CpuVolt IddVal IddDiv CpuCurr CpuPower");
-			printf("%s\n", (cpuFamily == AMD10H || cpuFamily == AMD11H) ? " NbVid NbVolt" : "");
+			printf("%s\n", (cpuFamily == AMD10H || cpuFamily == AMD11H) ? " NbVid NbVolt" : (maxNbPst ? " NbPst" : ""));
 		}
 		if (!currentOnly) {
 			for (i = 0; i < pstates_count; i++) {
@@ -557,7 +589,7 @@ void wrCpuStates() {
 					printf("%7d", (pstate >= 0 ? pstate : i));
 				}
 				rwMsrReg(tmp_pstates[i], 1);
-				if (nbVid > -1 || cpuVid > -1 || cpuFid > -1 || cpuDid > -1 || togglePs > -1) {
+				if (nbVid > -1 || cpuVid > -1 || cpuFid > -1 || cpuDid > -1 || togglePs > -1 || nbPst > -1) {
 					if (togglePs > -1) {
 						updateBuffer(PSTATE_EN_BITS, togglePs);
 					}
@@ -572,6 +604,9 @@ void wrCpuStates() {
 					}
 					if (cpuDid > -1) {
 						updateBuffer(CPU_DID_BITS, cpuDid);
+					}
+					if (nbPst > -1) {
+						updateBuffer(CPU_NBPST_BITS, nbPst);
 					}
 					rwMsrReg(tmp_pstates[i], 0);
 				}
@@ -597,6 +632,25 @@ void wrCpuStates() {
 }
 
 /**
+ * Decodes IddDiv value.
+ * @param iddDiv -> The input encoded value.
+ * @return short -> The divisor.
+ */
+signed short decodeIddDiv(const signed short iddDiv) {
+	switch (iddDiv) {
+		case 0:
+			return 1;
+		case 1:
+			return 10;
+		case 2:
+			return 100;
+		case 3:
+		default:
+			return -1;
+	}
+}
+
+/**
  * Print CPU PState data to STDOUT.
  * @param idd -> Print CPU current/power draw or not.
  */
@@ -615,22 +669,7 @@ void printCpuPstate(const unsigned char idd) {
 		);
 	}
 	if (idd) {
-		short IddDiv = getDec(IDD_DIV_BITS), IddVal = getDec(IDD_VALUE_BITS);
-		switch (IddDiv) {
-			case 0:
-				IddDiv = 1;
-				break;
-			case 1:
-				IddDiv = 10;
-				break;
-			case 2:
-				IddDiv = 100;
-				break;
-			case 3:
-			default:
-				IddDiv = -1;
-				break;
-		}
+		short IddDiv = decodeIddDiv(getDec(IDD_DIV_BITS)), IddVal = getDec(IDD_VALUE_BITS);
 		if (IddDiv != -1) {
 			float cpuCurrDraw = (cpuFamily == AMD17H || cpuFamily == AMD19H) ? IddVal + IddDiv : ((float) IddVal / (float) IddDiv);
 			if (!quiet) {
@@ -645,6 +684,13 @@ void printCpuPstate(const unsigned char idd) {
 				printf("%7s%7s%8s%9s", "", "", "", "");
 			}
 			printf("%6d%5dmV", NbVid, vidTomV(NbVid));
+		} else if (maxNbPst) {
+			if (!idd) {
+				printf("%7s%7s%8s%9s%6s", "", "", "", "", "");
+			} else {
+				const int NbPst = getDec(CPU_NBPST_BITS);
+				printf("%6d", NbPst);
+			}
 		}
 		printf("\n");
 	}
@@ -657,69 +703,73 @@ void printNbStates() {
 	if (quiet) {
 		return;
 	}
+	unsigned short nbvid, nbfid, nbdid, nbvolt, nbiddval = 0, mempst = 0, nbpstates = 0, nbcofbase = REFCLK;
+	signed short nbidddiv = -1;
+	const char *basic = " NbFid NbDid NbVid   NbFreq  NbVolt",
+	           *extended = " NbIddVal NbIddDiv  NbCurr NbPower MemPst";
 	switch (cpuFamily) {
 		case AMD12H:
 		case AMD14H:
+			nbpstates = 2;
+			basic = " NbVid  NbVolt";
+			extended = "";
+			break;
 		case AMD15H:
+			if (cpuModel <= 0x0f) {
+				nbpstates = 2;
+				nbcofbase *= 2;
+				extended = "";
+			} else {
+				nbpstates = 4;
+			}
+			break;
 		case AMD16H:
+			nbpstates = 4;
 			break;
 		default: // 10h and 11h NB pstates are in the CPU pstates.
 			return;
 	}
-	unsigned short nbvid, nbfid, nbdid;
-	unsigned char nbpstates;
-	printf("Northbridge:\n");
-	switch (cpuFamily) {
-		case AMD12H:
-		case AMD14H:
-			//Pstate 0 = D18F3xDC
-			rwPciReg("18.3", 0xdc, 1);
-			nbvid = getDec("18:12");
-			printf("P-State 0: %d (vid), %5dmV\n", nbvid, vidTomV(nbvid));
-			//Pstate 1 = D18F6x90
-			rwPciReg("18.6", 0x90, 1);
-			nbvid = getDec("14:8");
-			printf("P-State 1: %d (vid), %5dmV\n", nbvid, vidTomV(nbvid));
-			break;
-		case AMD15H:
-		case AMD16H:
-			//2 pstates: D18F5x160 and D18F5x164
-			if (cpuFamily == AMD15H && (cpuModel >= 0x00 && cpuModel <= 0x0f)) {
-				nbpstates = 2;
-			}
-			//4 pstates: D18F5x160, D18F5x164, D18F5x168 and D18F5x16C
-			else if ((cpuFamily == AMD15H && ((cpuModel >= 0x10 && cpuModel <= 0x1f)  || (cpuModel >= 0x30 && cpuModel <= 0x3f) || (cpuModel >= 0x60 && cpuModel <= 0x6f))) ||
-					(cpuFamily == AMD16H && ((cpuModel >= 0x00 && cpuModel <= 0x0f) || (cpuModel >= 0x30 && cpuModel <= 0x3f)))
-			) {
-				nbpstates = 4;
+	printf("Northbridge:\n NbPstate%s%s\n", basic, extended);
+	for (int nbpstate = 0; nbpstate < nbpstates; nbpstate++) {
+		if (cpuFamily <= AMD14H) {
+			if (nbpstate == 0) {
+				rwPciReg("18.3", 0xdc, 1);
+				nbvid = getDec(NB_PS0_VID_BITS);
 			} else {
-				return;
+				rwPciReg("18.6", 0x90, 1);
+				nbvid = getDec(NB_PS1_VID_BITS);
 			}
-			// We need to be able to display the REFCLK used for the calculations
-			unsigned short _refclk = REFCLK;
-			if (cpuModel >= 0x00 && cpuModel <= 0x0f) {
-				_refclk = 2 * REFCLK;
+			printf("%9d%6d%6dmV\n", nbpstate, nbvid, vidTomV(nbvid));
+		} else {
+			rwPciReg("18.5", 0x160 + (nbpstate << 2), 1);
+			if (!getDec(NB_PSTATE_EN_BITS)) {
+				continue;
 			}
-			const uint32_t addresses[][4] = {{0x160, 0x164, 0x168, 0x16c}};
-			for (int nbpstate = 0; nbpstate < nbpstates; nbpstate++) {
-				rwPciReg("18.5", addresses[0][nbpstate], 1);
-				nbvid = ((getDec("16:10") + (getDec("21:21") << 7)));
-				nbfid = getDec("7:7");
-				nbdid = getDec("6:1");
-				printf(
-					"P-State %d: %d (vid), %d (fid), %d (did), %6dmV, %dMHz (REFCLK = %dMHz)\n",
-					nbpstate,
-					nbvid,
-					nbfid,
-					nbdid,
-					vidTomV(nbvid),
-					(_refclk * (nbdid + 0x4) >> nbfid),
-					_refclk
-				);
+			nbvid = getDec(NB_VID60_BITS);
+			nbdid = getDec(NB_DID_BITS);
+			nbfid = getDec(NB_FID_BITS);
+			if (strlen(extended)) {
+				nbiddval = getDec(NB_IDD_VALUE_BITS);
+				nbidddiv = decodeIddDiv(getDec(NB_IDD_DIV_BITS));
+				nbvid += getDec(NB_VID7_BITS) << 7;
+				mempst = getDec(MEM_PSTATE_BITS);
 			}
-			break;
-		default:
-			break;
+			nbvolt = vidTomV(nbvid);
+			printf(
+				"%9d%6d%6d%6d%6dMHz%6dmV",
+				nbpstate,
+				nbfid,
+				nbdid,
+				nbvid,
+				nbcofbase * (nbfid + 0x4) >> nbdid,
+				nbvolt
+			);
+			if (nbidddiv != -1) {
+				float currdraw = (float) nbiddval / (float) nbidddiv;
+				printf("%9d%9d%7.2fA%7.2fW%7d", nbiddval, nbidddiv, currdraw, (currdraw * nbvolt) / 1000, mempst);
+			}
+			printf("\n");
+		}
 	}
 }
 
@@ -874,6 +924,7 @@ unsigned short vidTomV(const unsigned short vid) {
 
 	// https://github.com/mpollice/AmdMsrTweaker/blob/master/Info.cpp#L47
 	if ((cpuFamily == AMD15H && ((cpuModel > 0x0f && cpuModel < 0x20) || (cpuModel > 0x2f && cpuModel < 0x40))) ||
+		cpuFamily == AMD16H ||
 		cpuFamily == AMD17H ||
 		cpuFamily == AMD19H) {
 		return (MAX_VOLTAGE - (vid * VID_DIVIDOR3));
